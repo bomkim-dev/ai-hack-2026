@@ -10,6 +10,7 @@ const files = new Map([
   ['/app.js', ['./app.js', 'text/javascript; charset=utf-8']],
   ['/demo-logic.js', ['./demo-logic.js', 'text/javascript; charset=utf-8']],
   ['/pasta.jpg', ['./pasta.jpg', 'image/jpeg']],
+  ['/assets/mimichef-icon.png', ['../assets/mimichef-icon.png', 'image/png']],
   ['/voice/conversation.js', ['../conversation.js', 'text/javascript; charset=utf-8']],
   ['/voice/voice-capture.js', ['../voice-capture.js', 'text/javascript; charset=utf-8']],
   ['/voice/cooking-api.js', ['../cooking-api.js', 'text/javascript; charset=utf-8']],

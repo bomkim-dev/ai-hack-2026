@@ -24,6 +24,7 @@ const publicFiles = new Map([
   ['/app.js', ['app.js', 'text/javascript']],
   ['/styles.css', ['styles.css', 'text/css']],
   ['/assets/bacon-onion-pasta.jpg', ['assets/bacon-onion-pasta.jpg', 'image/jpeg']],
+  ['/assets/mimichef-icon.png', ['assets/mimichef-icon.png', 'image/png']],
   ['/cooking-api.js', ['cooking-api.js', 'text/javascript']],
   ['/cooking-logic.js', ['cooking-logic.js', 'text/javascript']],
   ['/recipes.js', ['recipes.js', 'text/javascript']],

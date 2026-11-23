@@ -7,7 +7,8 @@ header { display: flex; flex-wrap: wrap; align-items: end; justify-content: spac
 h1, h2, p { margin-block-start: 0; }
 h1 { font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.15; margin-bottom: 0; }
 h2 { font-size: 1.2rem; }
-.brand { display: inline-flex; min-height: 2.75rem; align-items: center; color: #395034; font-weight: 700; text-decoration: none; }
+.brand { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .5rem; color: #395034; font-weight: 700; text-decoration: none; }
+.brand img { flex: none; border-radius: .4rem; }
 .brand:hover { text-decoration: underline; }
 a { color: #395034; }
 .layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; margin-block: 1rem; align-items: start; }
