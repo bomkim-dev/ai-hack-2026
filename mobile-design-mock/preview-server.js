@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { loadEnvFile } from 'node:process';
 import { AquaError, transcribeAudio } from '../server/aqua.js';
+import { GeminiError } from '../server/gemini.js';
+import { sendSpeech } from '../server/speech.js';
 import { GuideError, respondWithGemini } from './gemini-guide.js';
 
 const files = new Map([
@@ -14,6 +16,7 @@ const files = new Map([
   ['/voice/conversation.js', ['../conversation.js', 'text/javascript; charset=utf-8']],
   ['/voice/voice-capture.js', ['../voice-capture.js', 'text/javascript; charset=utf-8']],
   ['/voice/cooking-api.js', ['../cooking-api.js', 'text/javascript; charset=utf-8']],
+  ['/voice/speech-output.js', ['../speech-output.js', 'text/javascript; charset=utf-8']],
 ]);
 
 function json(response, status, data) {
@@ -76,7 +79,7 @@ const server = createServer(async (request, response) => {
       response.end(data);
       return;
     }
-    if ((path === '/api/transcribe' || path === '/api/respond') && request.method === 'POST') {
+    if (['/api/transcribe', '/api/respond', '/api/speech'].includes(path) && request.method === 'POST') {
       const origin = request.headers.origin;
       const host = request.headers.host;
       if (!['127.0.0.1:' + port, 'localhost:' + port].includes(host) || (origin && origin !== 'http://' + host)) {
@@ -86,6 +89,8 @@ const server = createServer(async (request, response) => {
       }
       if (path === '/api/transcribe') {
         json(response, 200, { text: await transcribeAudio(await readWave(request)) });
+      } else if (path === '/api/speech') {
+        await sendSpeech(response, await readTurn(request));
       } else {
         const controller = new AbortController();
         response.once('close', () => controller.abort());
@@ -98,7 +103,11 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     request.resume();
     if (response.destroyed) return;
-    if (error instanceof AquaError || error instanceof GuideError) {
+    if (response.headersSent) {
+      response.destroy();
+      return;
+    }
+    if (error instanceof AquaError || error instanceof GeminiError || error instanceof GuideError) {
       json(response, error.status, { error: error.message });
     } else {
       json(response, 500, { error: 'プレビューでエラーが発生しました。' });

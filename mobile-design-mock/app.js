@@ -1,6 +1,7 @@
 import { advanceCooking, startCooking } from './demo-logic.js';
 import { openConversation, supportsConversation } from './voice/conversation.js';
 import { transcribe } from './voice/cooking-api.js';
+import { playSpeech, playTimerChime, prepareSpeech } from './voice/speech-output.js';
 
 const byId = id => document.getElementById(id);
 const recipe = byId('recipe');
@@ -42,6 +43,9 @@ let ticker;
 let conversation;
 let typedTurn;
 let history = [];
+let activeSpeech;
+let timerPending = false;
+const timerMessage = '茹で時間が終わりました。';
 
 function rememberMessage(role, text) {
   history = [...history.slice(-7), { role, text: text.slice(0, 500) }];
@@ -78,35 +82,47 @@ function stopConversation(message) {
   if (!conversation) return;
   conversation.controller.abort();
   conversation = undefined;
-  window.speechSynthesis?.cancel();
+  stopSpeech();
   updateVoice('idle');
   if (message) setFeedback(message);
 }
 
-function listen(session) {
-  if (conversation !== session) return;
-  if (current.done) {
-    stopConversation();
-    return;
-  }
-  updateVoice('listening');
-  session.capture.setListening(true);
+function stopSpeech() {
+  const speech = activeSpeech;
+  activeSpeech = undefined;
+  speech?.abort();
 }
 
-function speak(message, session) {
-  if (session) {
-    session.capture.setListening(false);
+function continueConversation() {
+  if (activeSpeech || conversation?.processing || (conversation && !conversation.capture)) return;
+  if (timerPending) {
+    timerPending = false;
+    speak(timerMessage);
+  } else if (conversation) {
+    if (current.done) {
+      stopConversation();
+      return;
+    }
+    updateVoice('listening');
+    conversation.capture.setListening(true);
+  }
+}
+
+function speak(message) {
+  if (!message) return;
+  stopSpeech();
+  const speech = new AbortController();
+  activeSpeech = speech;
+  if (conversation) {
+    conversation.capture?.setListening(false);
     updateVoice('speaking', true);
   }
-  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
-    if (session) listen(session);
-    return;
-  }
-  speechSynthesis.cancel();
-  const speech = new SpeechSynthesisUtterance(message);
-  speech.lang = 'ja-JP';
-  if (session) speech.onend = speech.onerror = () => listen(session);
-  speechSynthesis.speak(speech);
+  const finish = () => {
+    if (activeSpeech !== speech) return;
+    activeSpeech = undefined;
+    continueConversation();
+  };
+  void playSpeech(message, speech.signal).then(finish, finish);
 }
 
 function clearTimer() {
@@ -115,6 +131,7 @@ function clearTimer() {
   timer.hidden = true;
   timerNote.hidden = true;
   timer.classList.remove('expired');
+  timerPending = false;
 }
 
 function tick() {
@@ -129,7 +146,11 @@ function tick() {
   timer.classList.add('expired');
   timerLabel.textContent = '茹で時間終了';
   timerNote.hidden = false;
-  rememberMessage('assistant', '茹で時間が終了しました。');
+  rememberMessage('assistant', timerMessage);
+  conversation?.capture?.setListening(false);
+  playTimerChime();
+  timerPending = true;
+  continueConversation();
 }
 
 function render(result) {
@@ -192,14 +213,15 @@ function returnToRecipe() {
   typedTurn?.abort();
   typedTurn = undefined;
   updateVoice('idle');
-  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  stopSpeech();
   cooking.hidden = true;
   recipe.hidden = false;
   byId('start').focus();
   window.scrollTo(0, 0);
 }
 
-byId('start').addEventListener('click', () => {
+function beginCooking() {
+  prepareSpeech();
   messages.replaceChildren();
   history = [];
   utterance.value = '';
@@ -210,13 +232,10 @@ byId('start').addEventListener('click', () => {
   render(startCooking());
   byId('cooking-title').focus();
   window.scrollTo(0, 0);
-});
+}
 
-mic.addEventListener('click', async () => {
-  if (conversation) {
-    stopConversation();
-    return;
-  }
+async function startConversation(readOpening = false) {
+  prepareSpeech();
   if (!supportsConversation()) {
     setFeedback('このブラウザでは会話モードを使えません。文字で入力できます。');
     return;
@@ -229,28 +248,58 @@ mic.addEventListener('click', async () => {
   updateVoice('starting', true);
   try {
     const onTurn = async audio => {
-      if (signal.aborted) return;
+      if (signal.aborted || activeSpeech || session.processing) return;
+      session.processing = true;
       updateVoice('transcribing', true);
       try {
         const text = await transcribe(audio, signal);
         signal.throwIfAborted();
         updateVoice('responding', true);
         const message = await respond(text, signal);
-        speak(message, session);
+        speak(message);
       } catch (error) {
         if (!signal.aborted) stopConversation(error.message);
+      } finally {
+        session.processing = false;
+        continueConversation();
       }
     };
     const onFailure = () => {
       if (!signal.aborted) stopConversation('マイクが切断されました。文字で入力できます。');
     };
     session.capture = await openConversation(signal, onTurn, onFailure);
-    listen(session);
+    if (signal.aborted) return;
+    if (readOpening) speak(current.message);
+    else continueConversation();
   } catch (error) {
     if (signal.aborted) return;
     stopConversation(error.name === 'NotAllowedError'
       ? 'マイクが許可されていません。ブラウザの設定で許可するか、文字で入力してください。'
       : '会話モードを開始できませんでした。文字で入力できます。');
+    continueConversation();
+  }
+}
+
+function openTyping() {
+  stopConversation();
+  byId('typing').showModal();
+  utterance.focus();
+}
+
+byId('start').addEventListener('click', () => {
+  beginCooking();
+  void startConversation(true);
+});
+byId('start-text').addEventListener('click', () => {
+  beginCooking();
+  openTyping();
+});
+mic.addEventListener('click', () => {
+  if (conversation) {
+    stopConversation();
+    continueConversation();
+  } else {
+    void startConversation();
   }
 });
 byId('turn').addEventListener('submit', async event => {
@@ -283,12 +332,8 @@ byId('cooking-home').addEventListener('click', returnToRecipe);
 
 for (const button of document.querySelectorAll('[data-open]')) {
   button.addEventListener('click', () => {
-    const sheet = byId(button.dataset.open);
-    sheet.showModal();
-    if (sheet.id === 'typing') {
-      stopConversation();
-      utterance.focus();
-    }
+    if (button.dataset.open === 'typing') openTyping();
+    else byId(button.dataset.open).showModal();
   });
 }
 for (const button of document.querySelectorAll('[data-close]')) {
@@ -299,6 +344,8 @@ document.addEventListener('visibilitychange', () => {
   tick();
 });
 window.addEventListener('pagehide', () => {
+  clearTimer();
   stopConversation();
+  stopSpeech();
   typedTurn?.abort();
 });

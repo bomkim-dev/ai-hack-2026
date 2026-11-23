@@ -40,7 +40,8 @@
           </dl>
         </section>
         <div class="recipe-actions">
-          <button class="primary" id="start" type="button">料理を始める</button>
+          <button class="primary" id="start" type="button">音声で料理を始める</button>
+          <button class="text-button" id="start-text" type="button">文字で始める</button>
           <button class="text-button" data-open="pantry" type="button">食材・道具を確認</button>
         </div>
       </div>
@@ -69,22 +70,22 @@
           <output id="remaining" role="timer" aria-live="off"></output>
         </section>
         <p id="feedback" class="feedback" role="status" hidden></p>
-        <div id="voice-dock" class="voice-dock">
-          <button id="mic-button" class="mic-button" type="button" data-state="idle" aria-pressed="false" aria-label="会話モード" aria-describedby="voice-status">
-            <span class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-            <span id="voice-status" role="status">会話を始める</span>
-            <span class="mic-icon" aria-hidden="true"><svg><use href="#mic"/></svg></span>
-            <span id="voice-stop" class="voice-stop" aria-hidden="true" hidden>停止</span>
-          </button>
-          <div class="fallbacks">
-            <button class="text-button" data-open="typing" type="button">文字で入力</button>
-          </div>
-        </div>
         <div id="finish-dock" class="finish-dock" hidden><button id="finish" class="primary" type="button">調理前に戻る</button></div>
         <section id="conversation-history" class="conversation-history" aria-labelledby="history-title" hidden>
           <h2 id="history-title">会話履歴</h2>
           <ol id="messages" class="messages" tabindex="0" role="log" aria-labelledby="history-title"></ol>
         </section>
+      </div>
+      <div id="voice-dock" class="voice-dock">
+        <button id="mic-button" class="mic-button" type="button" data-state="idle" aria-pressed="false" aria-label="会話モード" aria-describedby="voice-status">
+          <span class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span id="voice-status" role="status">会話を始める</span>
+          <span class="mic-icon" aria-hidden="true"><svg><use href="#mic"/></svg></span>
+          <span id="voice-stop" class="voice-stop" aria-hidden="true" hidden>停止</span>
+        </button>
+        <div class="fallbacks">
+          <button class="text-button" data-open="typing" type="button">文字で入力</button>
+        </div>
       </div>
     </section>
   </main>

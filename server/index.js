@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
-import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { loadEnvFile } from 'node:process';
 import { AquaError, audioExtensions, transcribeAudio } from './aqua.js';
 import { CookingInputError, handleCookingTurn, startCooking } from './cooking.js';
-import { GeminiError, interpretWithGemini, streamGuidance } from './gemini.js';
+import { GeminiError, interpretWithGemini } from './gemini.js';
+import { sendSpeech } from './speech.js';
 
 function sendJson(response, status, value) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -22,6 +22,7 @@ const publicFiles = new Map([
   ['/', ['index.html', 'text/html']],
   ['/index.html', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']],
+  ['/speech-output.js', ['speech-output.js', 'text/javascript']],
   ['/styles.css', ['styles.css', 'text/css']],
   ['/assets/bacon-onion-pasta.jpg', ['assets/bacon-onion-pasta.jpg', 'image/jpeg']],
   ['/assets/mimichef-icon.png', ['assets/mimichef-icon.png', 'image/png']],
@@ -95,21 +96,7 @@ const server = createServer(async (request, response) => {
         return;
       }
       const data = await readJson(request);
-      const text = typeof data?.text === 'string' ? data.text.trim() : '';
-      if (!text || text.length > 600) throw new RequestError(400, '600文字以内の案内を送信してください。');
-      const controller = new AbortController();
-      response.once('close', () => controller.abort());
-      // The opening demo guide is a fixed Callirrhoe recording to avoid a cold TTS call.
-      const audio = text === 'お湯を沸かしましょう。'
-        ? [await readFile(new URL('../assets/demo-boil-water.pcm', import.meta.url))]
-        : streamGuidance(text, { signal: controller.signal });
-      for await (const chunk of audio) {
-        if (!response.headersSent) {
-          response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
-        }
-        if (!response.write(chunk)) await once(response, 'drain', { signal: controller.signal });
-      }
-      response.end();
+      await sendSpeech(response, data);
       return;
     }
     if (path === '/api/transcribe') {
