@@ -1,0 +1,39 @@
+:root { font-family: system-ui, "Hiragino Sans", sans-serif; color: #2a3026; background: #f6f2e8; line-height: 1.65; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { max-width: 64rem; padding: 1.75rem clamp(1rem, 5vw, 3rem); margin: auto; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: .75rem; border-bottom: 1px solid #d1cabd; margin-bottom: 1rem; padding-bottom: .75rem; }
+h1, h2, p { margin-block-start: 0; }
+h1 { font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.15; margin-bottom: 0; }
+h2 { font-size: 1.2rem; }
+.brand { color: #395034; font-weight: 700; margin-bottom: .3rem; }
+a { color: #395034; }
+.layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; margin-block: 1rem; align-items: start; }
+.stack { display: grid; gap: 1rem; }
+.panel { background: #fffdf6; border: 1px solid #d1cabd; border-radius: .95rem; padding: clamp(1rem, 3vw, 1.4rem); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.row > input:not([type=checkbox]) { min-width: 0; flex: 1 1 12rem; }
+button, input, select { font: inherit; color: inherit; }
+button, input:not([type=checkbox]), select { background: #fff; border: 1px solid #939889; border-radius: .55rem; min-height: 2.6rem; padding: .25rem .6rem; }
+button { cursor: pointer; font-weight: 650; }
+button:disabled { opacity: .55; cursor: default; }
+button.primary { background: #395034; color: #fff; border-color: #395034; }
+:focus-visible { outline: 3px solid #8b5b28; outline-offset: 2px; }
+#voice > label { display: block; margin-bottom: .35rem; font-weight: 650; }
+#voice-summary, #status { white-space: pre-line; }
+#voice-summary:empty { display: none; }
+#voice-summary { margin-block: .55rem; }
+.item { padding-block: .6rem; border-bottom: 1px solid #e1dacd; }
+.item:last-child { border-bottom: 0; }
+.item strong { display: block; margin-bottom: .35rem; }
+.item input[type=number], #purchase input[type=number] { width: 6rem; }
+.item details { margin-top: .35rem; }
+.item summary { cursor: pointer; color: #395034; }
+.hint { color: #53594b; margin-block: .45rem 0; font-size: .9rem; }
+.expiry { color: #813f16; font-weight: 700; }
+#shopping-options { margin-bottom: 1rem; }
+#shopping-options label { margin-right: .7rem; }
+#purchase { margin-top: .8rem; border-top: 1px solid #e1dacd; padding-top: .8rem; }
+#status { margin-top: .8rem; }
+@media (max-width: 43rem) { .layout { grid-template-columns: 1fr; } }

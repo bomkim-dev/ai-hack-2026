@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f2e8">
+  <title>食材と道具 | 台所ガイド</title>
+  <link rel="stylesheet" href="./pantry.css">
+  <script type="module" src="./pantry.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <div><p class="brand">台所ガイド</p><h1>食材と道具</h1></div>
+    <a data-cook-only href="./index.html">在庫を使わずに料理する →</a>
+  </header>
+  <div id="pantry-content">
+  <p>食材は「ある・ない」だけでも使えます。数えたいものだけ数量を記録できます。</p>
+  <form id="voice" class="panel">
+    <label for="utterance">Aqua Voiceで食材や道具を入力</label>
+    <div class="row">
+      <input id="utterance" maxlength="300" required autocomplete="off" placeholder="例：ツナ缶は2つ。鍋はなくて、深めのフライパンはある。">
+      <button>変更を確認</button>
+    </div>
+    <p id="voice-summary" role="status"></p>
+    <button id="apply-voice" type="button" hidden>この内容を保存</button>
+  </form>
+  <div class="layout">
+    <section class="panel" aria-labelledby="ingredients-label">
+      <h2 id="ingredients-label">食材</h2>
+      <div id="ingredients"></div>
+    </section>
+    <div class="stack">
+      <section class="panel" aria-labelledby="tools-label">
+        <h2 id="tools-label">調理道具</h2>
+        <div id="tools"></div>
+        <p class="hint">包丁・まな板・コンロと、油・塩こしょうも確認してください。</p>
+      </section>
+      <section class="panel" aria-labelledby="shopping-label">
+        <h2 id="shopping-label">買い出し</h2>
+        <div id="shopping"></div>
+        <form id="manual-shopping" class="row">
+          <label>追加する食材 <select name="item" required></select></label>
+          <button>リストに追加</button>
+        </form>
+        <form id="purchase" hidden></form>
+      </section>
+    </div>
+  </div>
+  <section class="panel" aria-labelledby="route-label">
+    <h2 id="route-label">今日のおすすめ</h2>
+    <p id="route"></p>
+    <ul id="missing"></ul>
+    <div id="shopping-options"></div>
+    <button id="open-cooking" type="button" class="primary">この組み合わせで料理する</button>
+  </section>
+  </div>
+  <section id="finish" class="panel" hidden>
+    <h2>使った食材を確認する</h2>
+    <form id="usage">
+      <div id="usage-items"></div>
+      <div class="row">
+        <button class="primary">在庫を更新</button>
+        <button id="skip-usage" type="button">更新をスキップ</button>
+      </div>
+    </form>
+    <a href="./pantry.html">食材と道具へ戻る</a>
+  </section>
+  <p id="status" role="status"></p>
+</main>
+</body>
+</html>
