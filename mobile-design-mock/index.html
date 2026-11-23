@@ -17,7 +17,7 @@
   </svg>
   <main class="app">
     <section id="recipe" class="screen" aria-labelledby="recipe-title">
-      <header class="topbar"><span class="wordmark">ミミシェフ</span></header>
+      <header class="topbar"><a class="wordmark" href="./" aria-label="ミミシェフのトップへ">ミミシェフ</a></header>
       <img class="cover" src="./pasta.jpg" width="572" height="402" alt="焼き色のついたベーコンと玉ねぎのパスタ">
       <div class="recipe-content">
         <h1 id="recipe-title">ベーコンと玉ねぎの<span class="title-word">パスタ</span></h1>
@@ -40,6 +40,7 @@
       <header class="topbar cooking-bar">
         <button class="icon-button back" data-open="quit" type="button" aria-label="調理前に戻る"><svg><use href="#back"/></svg></button>
         <h1 id="cooking-title" tabindex="-1">調理ガイド</h1>
+        <button id="cooking-home" class="wordmark" type="button" aria-label="ミミシェフのトップへ">ミミシェフ</button>
       </header>
       <div class="cooking-content">
         <section class="next-step" aria-labelledby="step-label">

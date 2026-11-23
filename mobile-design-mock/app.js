@@ -278,6 +278,7 @@ byId('quit-cooking').addEventListener('click', () => {
   returnToRecipe();
 });
 byId('finish').addEventListener('click', returnToRecipe);
+byId('cooking-home').addEventListener('click', returnToRecipe);
 
 for (const button of document.querySelectorAll('[data-open]')) {
   button.addEventListener('click', () => {
