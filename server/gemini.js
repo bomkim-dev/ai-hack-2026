@@ -38,6 +38,43 @@ export class GeminiError extends Error {
   }
 }
 
+export async function synthesizeGuidance(text, { signal, fetcher = fetch, apiKey = process.env.GEMINI_API_KEY } = {}) {
+  if (!apiKey?.trim()) throw new GeminiError('音声生成には Gemini API キーが必要です。', 503);
+
+  const timeout = AbortSignal.timeout(10_000);
+  try {
+    const response = await fetcher('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      body: JSON.stringify({
+        model: 'gemini-3.8-flash-tts',
+        input: [{
+          type: 'user_input',
+          content: [{
+            type: 'text',
+            text,
+            annotations: [{ type: 'speech_metadata', style: 'Calm, natural Japanese. Clear and gently paced.' }],
+          }],
+        }],
+        response_format: { type: 'audio', mime_type: 'audio/wav' },
+        generation_config: { speech_config: [{ voice: 'Callirrhoe' }] },
+      }),
+    });
+    if (!response.ok) throw new Error(`Gemini TTS HTTP ${response.status}`);
+    const result = await response.json();
+    const output = result.steps?.flatMap(step => step.content ?? [])
+      .findLast(block => block.type === 'audio' && typeof block.data === 'string');
+    const audio = Buffer.from(output?.data ?? '', 'base64');
+    if (audio.length <= 44 || audio.toString('ascii', 0, 4) !== 'RIFF' || audio.toString('ascii', 8, 12) !== 'WAVE') {
+      throw new Error('Missing WAV audio in Gemini response');
+    }
+    return audio;
+  } catch (cause) {
+    throw new GeminiError('音声を生成できませんでした。', 502, { cause });
+  }
+}
+
 function parseIntent(text, stepIds) {
   const intent = JSON.parse(text);
   const validSteps = ids => Array.isArray(ids) && ids.every(id => stepIds.includes(id));

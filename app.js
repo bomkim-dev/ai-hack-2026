@@ -55,29 +55,71 @@ let queuedSpeech;
 let timerDue = false;
 let conversation;
 let activeSpeech;
+let speechOutput;
+
+function prepareSpeech() {
+  if (!window.AudioContext) return;
+  try {
+    speechOutput ??= new AudioContext();
+    if (speechOutput.state !== 'running') speechOutput.resume().catch(() => {});
+  } catch {
+    // Browser speech remains available if Web Audio cannot start.
+  }
+}
+
+async function playGeneratedSpeech(text, signal) {
+  if (!speechOutput) throw new Error('Web Audio unavailable');
+  const response = await fetch('/api/speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(11_000)]),
+  });
+  if (!response.ok) throw new Error('Speech generation unavailable');
+  const buffer = await speechOutput.decodeAudioData(await response.arrayBuffer());
+  signal.throwIfAborted();
+  if (speechOutput.state !== 'running') throw new Error('Web Audio suspended');
+
+  const source = speechOutput.createBufferSource();
+  source.buffer = buffer;
+  source.connect(speechOutput.destination);
+  try {
+    await new Promise(resolve => {
+      source.onended = resolve;
+      signal.addEventListener('abort', resolve, { once: true });
+      source.start();
+    });
+  } finally {
+    if (signal.aborted) source.stop();
+    source.disconnect();
+  }
+}
 
 function speak(message, after) {
-  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance !== 'function') {
-    after?.();
-    return;
-  }
-  const speaking = Symbol('speech');
+  const previous = activeSpeech;
+  const speaking = new AbortController();
   activeSpeech = speaking;
+  previous?.abort();
+  window.speechSynthesis?.cancel();
   syncConversation();
-  speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(message);
-  utterance.lang = 'ja-JP';
-  const voice = speechSynthesis.getVoices().find(item => /^ja([-_]|$)/iu.test(item.lang));
-  if (voice) utterance.voice = voice;
   const finishedSpeaking = () => {
     if (activeSpeech !== speaking) return;
     activeSpeech = undefined;
     after?.();
     syncConversation();
   };
-  utterance.onend = finishedSpeaking;
-  utterance.onerror = finishedSpeaking;
-  speechSynthesis.speak(utterance);
+  playGeneratedSpeech(message, speaking.signal).then(finishedSpeaking, () => {
+    if (speaking.signal.aborted) return;
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance !== 'function') {
+      finishedSpeaking();
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'ja-JP';
+    utterance.onend = finishedSpeaking;
+    utterance.onerror = finishedSpeaking;
+    speechSynthesis.speak(utterance);
+  });
 }
 
 function scrollToLatest() {
@@ -340,6 +382,7 @@ function run(task) {
 }
 
 start.addEventListener('click', () => run(async signal => {
+  prepareSpeech();
   context = selection ? { ...selection, cookId: crypto.randomUUID() } : currentContext();
   get('recipe-source').textContent = demo ? '画面確認用のレシピです。' : 'レシピを準備しています…';
   const result = await logic.startCooking({ ...context, signal });
@@ -440,6 +483,7 @@ talk.addEventListener('click', async () => {
 });
 
 get('repeat').addEventListener('click', () => {
+  prepareSpeech();
   if (!timerDue) speakGuidance(spokenInstruction);
 });
 get('reset').addEventListener('click', () => {
@@ -451,7 +495,9 @@ get('reset').addEventListener('click', () => {
   timerDue = false;
   timerAnnouncement = undefined;
   queuedSpeech = undefined;
+  const speaking = activeSpeech;
   activeSpeech = undefined;
+  speaking?.abort();
   window.speechSynthesis?.cancel();
   state = undefined;
   currentStepId = undefined;
