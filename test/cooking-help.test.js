@@ -53,3 +53,17 @@ test('mobile guide handles simple progress and timing without swallowing mixed t
   assert.equal(quickCookingTurn('ベーコンを切った。次は中火？', 'prepare'), null);
   assert.equal(quickCookingTurn('ベーコン切った。', 'prepare').advance, true);
 });
+
+test('mobile guide recognizes short boil reports and asks what was done before starting the timer', () => {
+  for (const text of ['ワイタ', 'ﾜｲﾀ', 'わいた。', '沸いた', 'お湯 ワイタ', 'できた。']) {
+    assert.deepEqual(quickCookingTurn(text, 'boil'), { advance: true, timerSeconds: null, reply: '' });
+  }
+  for (const text of ['ワイタ？', 'まだ沸いてない', '沸いた。いや、まだ']) {
+    assert.equal(quickCookingTurn(text, 'boil'), null, text);
+  }
+  assert.match(quickCookingTurn('できた。', 'add').reply, /もう入れましたか/);
+  assert.equal(quickCookingTurn('できた。', 'add').advance, false);
+  assert.match(quickCookingTurn('できた。', 'add', true).reply, /茹で時間/);
+  assert.equal(quickCookingTurn('入れた。7分', 'add').timerSeconds, 420);
+  assert.equal(quickCookingTurn('入れた。7分でいい？', 'add'), null);
+});

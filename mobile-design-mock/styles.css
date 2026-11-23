@@ -42,6 +42,7 @@ svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentCo
 
 .cooking-bar { gap: .5rem; padding-left: .55rem; }
 .cooking-bar h1 { font-size: 1rem; font-weight: 650; }
+.cooking-bar h1:focus { outline: none; }
 .cooking-bar .wordmark { margin-inline-start: auto; }
 #cooking { display: flex; flex-direction: column; min-height: 100dvh; }
 .cooking-content { padding: 0 1.4rem max(1.35rem, env(safe-area-inset-bottom)); }
@@ -70,10 +71,11 @@ svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentCo
   padding: .65rem .9rem;
   border-radius: .25rem 1rem 1rem;
   background: #eef1e9;
-  font-size: clamp(1.375rem, 6.4vw, 1.9rem);
+  font-size: clamp(1.25rem, 5.8vw, 1.65rem);
   font-weight: 650;
   line-height: 1.5;
   line-break: strict;
+  text-wrap: balance;
   overflow-wrap: anywhere;
 }
 .timer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .6rem; min-height: 3.75rem; padding: .65rem .75rem; margin-bottom: 1rem; border-block: 1px solid var(--line); color: var(--green); }

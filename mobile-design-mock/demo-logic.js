@@ -1,8 +1,12 @@
 import { answerCookingQuestion, baconCutInstruction } from '../cooking-help.js';
 
+const boiledWater = /^(?:(?:パスタ用の)?お湯(?:が|は)?\s*)?(?:[沸湧](?:いた|きました)|わ(?:いた|きました)|ワ(?:イタ|キマシタ))$/u;
+const addedPasta = /^(?:お湯に)?(?:パスタを?)?入れ(?:た|ました)$/u;
+const doneReport = /^(?:できた|できました|出来た|出来ました)$/u;
+
 const steps = [
-  ['boil', 'お湯を沸かしましょう', 'パスタ用のお湯が沸いた', /^(?:パスタ用の)?お湯[がは][沸湧](?:いた|きました)$/u],
-  ['add', '沸いたお湯にパスタを入れて、袋に書いてある茹で時間を教えてください。', 'パスタをお湯に入れた。袋に書いてある茹で時間も必要', /^(?:お湯に)?パスタを?入れ(?:た|ました)$/u],
+  ['boil', 'お湯を沸かしましょう', 'パスタ用のお湯が沸いた', boiledWater],
+  ['add', 'パスタを入れてください。袋の茹で時間を教えてください。', 'パスタをお湯に入れた。袋に書いてある茹で時間も必要', addedPasta],
   ['prepare', baconCutInstruction, 'ベーコンを切り終えた', /^ベーコンを?切(?:った|りました)$/u],
   ['fry', 'ベーコンと薄切りの玉ねぎを中火で炒め、玉ねぎが透き通ったら火を止めてください。', 'ベーコンと玉ねぎを炒め終えた', /^ベーコンと玉ねぎを炒め(?:た|ました)$/u],
   ['drain', '茹で具合を確認し、湯を切りましょう。', 'パスタの湯を切った', /^(?:パスタの)?お?湯を切(?:った|りました)$/u],
@@ -19,9 +23,18 @@ export const maxTimerSeconds = 3600;
 export function quickCookingTurn(text, stepId, awaitingDuration = false) {
   const phrase = text.normalize('NFKC').trim().replace(/[。.!]+$/u, '').trim();
   const stepPattern = steps.find(([id]) => id === stepId)?.[3];
+  if (stepId === 'boil' && doneReport.test(phrase)) return { advance: true, timerSeconds: null, reply: '' };
   if (stepId === 'add') {
-    const report = phrase.match(/^(?:お湯に)?パスタを?入れ(?:た|ました)(?:[、,。\s]+(.+))?$/u);
-    const duration = (report?.[1] ?? (awaitingDuration ? phrase : '')).match(/^(\d+|七)\s*(分|秒)(?:です)?$/u);
+    if (doneReport.test(phrase)) {
+      const reply = awaitingDuration
+        ? '袋に書いてある茹で時間を教えてください。'
+        : 'パスタはもう入れましたか？ 入れたら、袋の茹で時間を教えてください。';
+      return { advance: false, timerSeconds: null, reply };
+    }
+    const separator = phrase.search(/[、,。\s]/u);
+    const report = separator >= 0 && addedPasta.test(phrase.slice(0, separator));
+    const durationText = report ? phrase.slice(separator).replace(/^[、,。\s]+/u, '') : awaitingDuration ? phrase : '';
+    const duration = durationText.match(/^(\d+|七)\s*(分|秒)(?:です)?$/u);
     if (duration) {
       const seconds = (duration[1] === '七' ? 7 : Number(duration[1])) * (duration[2] === '分' ? 60 : 1);
       if (Number.isSafeInteger(seconds) && seconds >= 1 && seconds <= maxTimerSeconds) {
