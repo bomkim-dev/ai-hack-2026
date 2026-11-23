@@ -1,12 +1,18 @@
-# 画面・音声・タイマーの接続
+# Cooking input and timer
 
-Node.js 22 以上で `npm start` を実行し、`http://127.0.0.1:3001/` を開きます。通常画面ではローカルの `.env` に `AQUA_API_KEY` と `GEMINI_API_KEY` を設定してください。
+Run `npm start` with Node.js 22 or later and open `http://127.0.0.1:3001/`. In normal mode, set `GEMINI_API_KEY` in the local `.env`. The browser conversation mode also requires `AQUA_API_KEY`.
 
-1. 「すぐに料理する」を押します。
-2. 「録音する」を押して「お湯は沸いた。玉ねぎは切った。ベーコンはまだ」と話し、「録音を止める」を押します。Aqua Voice の文字起こしが自動で調理ガイドに送られます。
-3. 「パスタを入れた。7分」と話します。終了通知を短い時間で試す場合は「パスタを入れた。10秒」と話します。
-4. 案内に合わせて「ベーコン切った」「炒めた」「湯を切った」「味付けできた」「盛り付けた」と進めます。
+## Mac dictation
 
-案内とタイマー終了はブラウザの日本語音声で読み上げます。文字で送信することもできます。別端末でマイクを使う場合は HTTPS が必要です。
+1. In Aqua Voice, use Instant dictation. In the cooking guide, select 「すぐに料理する」 and enable 「Aqua Voice の入力を自動送信」.
+2. Focus the input, hold the Aqua Voice key, and say 「お湯は沸いた。玉ねぎは切った。ベーコンはまだ」. Release the key to insert the transcript.
+3. Say 「パスタを入れた。7分」. Use 「パスタを入れた。10秒」 to exercise the end alert in a short rehearsal.
+4. Follow the spoken guidance through 「ベーコン切った」「炒めた」「湯を切った」「味付けできた」「盛り付けた」.
 
-`/?demo=1` は API キーを使わない画面確認用です。文字入力で調理を進められ、ツナやワンパン、短縮タイマーを試せます。食材・道具と在庫更新の接続は [A・B 接続仕様](./pantry-integration.md) を参照してください。
+Auto-send responds to a single paste, replacement, or multi-character insertion once the guide is ready. The browser cannot identify which app produced an input event, so the setting is opt-in. The form's Send button and Enter remain available for ordinary typing, edits, and dictation insertions that do not match those events.
+
+## Browser conversation and demo
+
+Select 「会話を始める」 to use the browser microphone and automatic silence detection. The conversation and Mac auto-send cannot run at the same time. The browser needs a secure context for microphone access.
+
+Open `/?demo=1` for local recipe and timer rehearsal without API keys. Use the same input field to test typing or Mac dictation. The browser's Japanese speech synthesis reads instructions and timer alerts.

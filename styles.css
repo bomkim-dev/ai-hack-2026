@@ -31,6 +31,8 @@ label { display: block; font-weight: 700; }
 #input-help { margin: .3rem 0 .65rem; color: var(--muted); font-size: .85rem; }
 .input-row, .actions { display: flex; gap: .55rem; }
 .actions { margin-top: .8rem; flex-wrap: wrap; }
+.aqua-auto-send { display: flex; width: fit-content; min-height: 2.75rem; align-items: center; gap: .5rem; font-size: .875rem; }
+.aqua-auto-send input { flex: none; min-height: auto; margin: 0; accent-color: var(--green); }
 input { padding: .55rem .7rem; min-width: 0; flex: 1; border: 1px solid var(--line); color: var(--ink); background: white; }
 .timer {
   position: sticky;
