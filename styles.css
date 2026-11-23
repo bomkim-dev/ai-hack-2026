@@ -12,23 +12,32 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; }
+body { margin: 0; font-size: .9375rem; }
 main { max-width: 68rem; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3rem; }
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .app-name { color: var(--green); font-size: 1rem; font-weight: 750; letter-spacing: .08em; }
 .mode { margin: 0; color: var(--muted); font-size: .85rem; }
-h1 { margin: 1.5rem 0; font-size: clamp(1.8rem, 5vw, 3.4rem); font-weight: 700; line-height: 1.28; text-wrap: balance; }
+h1 { margin: 1.25rem 0; font-size: clamp(1.5rem, 3.5vw, 2.25rem); font-weight: 700; line-height: 1.35; text-wrap: balance; }
 .workspace { display: grid; grid-template-columns: minmax(0, 2fr) minmax(14rem, 1fr); gap: 1rem; align-items: start; }
 .panel { padding: clamp(1rem, 3vw, 1.65rem); border: 1px solid var(--line); border-radius: 1rem; background: #fffdf7; }
 h2 { margin: 0; font-size: 1rem; color: var(--muted); }
-.instruction { min-height: 4.8rem; margin: 1.45rem 0; font-size: clamp(1.3rem, 4vw, 1.9rem); line-height: 1.6; overflow-wrap: anywhere; }
+.instruction { margin: .75rem 0 1rem; font-size: 1rem; line-height: 1.6; overflow-wrap: anywhere; }
 button, input { font: inherit; border-radius: .65rem; min-height: 3rem; }
 button { padding: .55rem 1rem; cursor: pointer; border: 1px solid var(--green); background: var(--green); color: white; font-weight: 650; }
 button:disabled { cursor: wait; opacity: .6; }
 button.secondary { background: transparent; color: var(--green); border-color: var(--line); font-weight: 600; }
 button:focus-visible, input:focus-visible { outline: 3px solid #a85b26; outline-offset: 2px; }
 label { display: block; font-weight: 700; }
-#input-help { margin: .3rem 0 .65rem; color: var(--muted); font-size: .85rem; }
+#input-help { margin: .3rem 0 .65rem; color: var(--muted); font-size: .85rem; line-height: 1.55; }
+#input-help kbd {
+  padding: .05rem .28rem;
+  border: 1px solid var(--line);
+  border-radius: .25rem;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  white-space: nowrap;
+}
 .input-row, .actions { display: flex; gap: .55rem; }
 .actions { margin-top: .8rem; flex-wrap: wrap; }
 .aqua-auto-send { display: flex; width: fit-content; min-height: 2.75rem; align-items: center; gap: .5rem; font-size: .875rem; }
@@ -53,7 +62,7 @@ input { padding: .55rem .7rem; min-width: 0; flex: 1; border: 1px solid var(--li
   grid-column: 2;
   grid-row: 1 / 3;
   color: var(--green);
-  font: 650 clamp(1.65rem, 6vw, 2.5rem)/1.2 system-ui, sans-serif;
+  font: 650 clamp(1.5rem, 5vw, 2rem)/1.2 system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 #timer-status { grid-column: 1; grid-row: 2; margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.55; }
@@ -68,9 +77,8 @@ dd { margin: 0; white-space: nowrap; }
 
 @media (max-width: 42rem) {
   main { padding-top: 1rem; }
-  h1 { margin-block: 1rem; font-size: clamp(1.65rem, 6vw, 2.25rem); }
+  h1 { margin-block: 1rem; font-size: clamp(1.375rem, 5vw, 1.75rem); }
   .workspace { grid-template-columns: minmax(0, 1fr); }
-  .instruction { min-height: auto; margin-block: .8rem 1rem; }
   #start { width: 100%; }
   #utterance { font-size: max(1rem, 16px); }
 }
@@ -109,7 +117,7 @@ dd { margin: 0; white-space: nowrap; }
   padding: .72rem .9rem;
   border-radius: .25rem 1rem 1rem 1rem;
   background: #fffdf7;
-  font-size: clamp(1rem, 2.15vw, 1.16rem);
+  font-size: .9375rem;
   line-height: 1.65;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
