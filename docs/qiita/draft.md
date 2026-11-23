@@ -19,7 +19,7 @@ AI HACK SPECIAL ONE-DAY HACKATHONで、チーム「ギャップ」として、�
 
 ## スマホで使うときの画面
 
-![スマートフォン幅で表示したレシピの開始画面。材料と「料理を始める」ボタンが並ぶ](images/mobile-recipe.png)
+![スマートフォン幅で表示したレシピの開始画面。材料と「音声で料理を始める」ボタンが並ぶ](images/mobile-recipe.png)
 
 ![スマートフォン幅で表示した調理ガイド。次の手順と音声入力の操作が並ぶ](images/mobile-cooking.png)
 
