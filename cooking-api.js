@@ -3,7 +3,9 @@ async function request(path, { signal, ...options } = {}) {
   const response = await fetch(path, { ...options, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
   const result = await response.json().catch(() => null);
   if (!response.ok || !result) {
-    throw new Error(result?.error || '調理サーバーに接続できませんでした。');
+    const error = new Error(result?.error || '調理サーバーに接続できませんでした。');
+    error.status = response.status;
+    throw error;
   }
   return result;
 }

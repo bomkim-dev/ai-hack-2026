@@ -59,7 +59,7 @@ export async function* streamGuidance(text, { signal, fetcher = fetch, apiKey = 
           content: [{
             type: 'text',
             text,
-            annotations: [{ type: 'speech_metadata', style: 'Calm, natural Japanese. Clear and gently paced.' }],
+            annotations: [{ type: 'speech_metadata', style: 'Calm, natural Japanese. Read every sentence as written, clearly and gently.' }],
           }],
         }],
         response_format: { type: 'audio', mime_type: 'audio/l16', sample_rate: 24_000 },

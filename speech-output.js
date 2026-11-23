@@ -81,9 +81,6 @@ async function playGeneratedSpeech(text, signal) {
       });
     }
     if (!lastPlayback) throw new Error('Speech stream contained no audio');
-  } catch (error) {
-    if (!lastPlayback || signal.aborted) throw error;
-    // If audio already started, finish the queued samples without repeating the guide.
   } finally {
     try {
       await lastPlayback;
