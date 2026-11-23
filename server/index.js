@@ -98,7 +98,11 @@ const server = createServer(async (request, response) => {
       if (!text || text.length > 600) throw new RequestError(400, '600文字以内の案内を送信してください。');
       const controller = new AbortController();
       response.once('close', () => controller.abort());
-      for await (const chunk of streamGuidance(text, { signal: controller.signal })) {
+      // The opening demo guide is a fixed Callirrhoe recording to avoid a cold TTS call.
+      const audio = text === 'お湯を沸かしましょう。'
+        ? [await readFile(new URL('../assets/demo-boil-water.pcm', import.meta.url))]
+        : streamGuidance(text, { signal: controller.signal });
+      for await (const chunk of audio) {
         if (!response.headersSent) {
           response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
         }
