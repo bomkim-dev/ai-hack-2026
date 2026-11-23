@@ -1,9 +1,10 @@
 import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { loadEnvFile } from 'node:process';
 import { AquaError, audioExtensions, transcribeAudio } from './aqua.js';
 import { CookingInputError, handleCookingTurn, startCooking } from './cooking.js';
-import { GeminiError, interpretWithGemini, synthesizeGuidance } from './gemini.js';
+import { GeminiError, interpretWithGemini, streamGuidance } from './gemini.js';
 
 function sendJson(response, status, value) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -97,9 +98,13 @@ const server = createServer(async (request, response) => {
       if (!text || text.length > 600) throw new RequestError(400, '600文字以内の案内を送信してください。');
       const controller = new AbortController();
       response.once('close', () => controller.abort());
-      const audio = await synthesizeGuidance(text, { signal: controller.signal });
-      response.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store' });
-      response.end(audio);
+      for await (const chunk of streamGuidance(text, { signal: controller.signal })) {
+        if (!response.headersSent) {
+          response.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
+        }
+        if (!response.write(chunk)) await once(response, 'drain', { signal: controller.signal });
+      }
+      response.end();
       return;
     }
     if (path === '/api/transcribe') {
@@ -131,6 +136,10 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     request.resume();
     if (response.destroyed) return;
+    if (response.headersSent) {
+      response.destroy();
+      return;
+    }
     if (error instanceof RequestError || error instanceof GeminiError || error instanceof AquaError) {
       sendJson(response, error.status, { error: error.message });
     } else if (error instanceof CookingInputError) {

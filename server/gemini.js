@@ -1,3 +1,5 @@
+import { createInterface } from 'node:readline';
+import { Readable } from 'node:stream';
 import { maxTimerSeconds } from './cooking.js';
 import { defaultRecipeId, getRecipe } from '../recipes.js';
 
@@ -38,15 +40,18 @@ export class GeminiError extends Error {
   }
 }
 
-export async function synthesizeGuidance(text, { signal, fetcher = fetch, apiKey = process.env.GEMINI_API_KEY } = {}) {
+export async function* streamGuidance(text, { signal, fetcher = fetch, apiKey = process.env.GEMINI_API_KEY } = {}) {
   if (!apiKey?.trim()) throw new GeminiError('音声生成には Gemini API キーが必要です。', 503);
 
-  const timeout = AbortSignal.timeout(10_000);
+  const firstAudio = new AbortController();
+  const firstAudioTimeout = setTimeout(() => firstAudio.abort(), 8_000);
+  const signals = [firstAudio.signal, AbortSignal.timeout(25_000)];
+  if (signal) signals.push(signal);
   try {
     const response = await fetcher('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      signal: AbortSignal.any(signals),
       body: JSON.stringify({
         model: 'gemini-3.8-flash-tts',
         input: [{
@@ -57,21 +62,38 @@ export async function synthesizeGuidance(text, { signal, fetcher = fetch, apiKey
             annotations: [{ type: 'speech_metadata', style: 'Calm, natural Japanese. Clear and gently paced.' }],
           }],
         }],
-        response_format: { type: 'audio', mime_type: 'audio/wav' },
+        response_format: { type: 'audio', mime_type: 'audio/l16', sample_rate: 24_000 },
         generation_config: { speech_config: [{ voice: 'Callirrhoe' }] },
+        stream: true,
       }),
     });
-    if (!response.ok) throw new Error(`Gemini TTS HTTP ${response.status}`);
-    const result = await response.json();
-    const output = result.steps?.flatMap(step => step.content ?? [])
-      .findLast(block => block.type === 'audio' && typeof block.data === 'string');
-    const audio = Buffer.from(output?.data ?? '', 'base64');
-    if (audio.length <= 44 || audio.toString('ascii', 0, 4) !== 'RIFF' || audio.toString('ascii', 8, 12) !== 'WAVE') {
-      throw new Error('Missing WAV audio in Gemini response');
+    if (!response.ok || !response.body) throw new Error(`Gemini TTS HTTP ${response.status}`);
+    const input = Readable.fromWeb(response.body);
+    const lines = createInterface({ input, crlfDelay: Infinity });
+    let hasAudio = false;
+    try {
+      for await (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        const event = JSON.parse(data);
+        if (event.event_type === 'error') throw new Error('Gemini speech stream failed');
+        if (event.event_type !== 'step.delta' || event.delta?.type !== 'audio' || !event.delta.data) continue;
+        const chunk = Buffer.from(event.delta.data, 'base64');
+        if (!chunk.length) continue;
+        clearTimeout(firstAudioTimeout);
+        hasAudio = true;
+        yield chunk;
+      }
+    } finally {
+      lines.close();
+      input.destroy();
     }
-    return audio;
+    if (!hasAudio) throw new Error('Missing PCM audio in Gemini response');
   } catch (cause) {
     throw new GeminiError('音声を生成できませんでした。', 502, { cause });
+  } finally {
+    clearTimeout(firstAudioTimeout);
   }
 }
 
