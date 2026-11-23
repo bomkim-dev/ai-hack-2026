@@ -122,6 +122,21 @@ function remainingSeconds() {
   return deadline === undefined ? null : Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 }
 
+function answerTimerQuestion(text) {
+  const phrase = text.normalize('NFKC').replace(/[\s、。?!]/gu, '');
+  const question = /^(?:タイマー(?:の|は)?)?(?:(?:あと|残り(?:は|あと)?)(?:何分|何秒|どれくらい)(?:ですか)?|残り時間(?:は|を教えて(?:ください)?)?)$/u;
+  if (!question.test(phrase)) return null;
+
+  const seconds = remainingSeconds();
+  if (seconds === 0 || timer.classList.contains('is-expired')) return '茹で時間は終わりました。';
+  if (seconds === null) return 'まだタイマーは動いていません。';
+
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  const duration = (minutes ? `${minutes}分` : '') + (rest ? `${rest}秒` : '');
+  return `あと${duration}です。`;
+}
+
 function updateTimer() {
   const seconds = remainingSeconds();
   if (seconds === null) return;
@@ -315,6 +330,13 @@ start.addEventListener('click', () => run(async signal => {
 
 async function submitUtterance(text, signal) {
   const message = appendMessage('you', text);
+  const timerAnswer = answerTimerQuestion(text);
+  if (timerAnswer) {
+    appendMessage('guide', timerAnswer);
+    // Let the expiration alert speak first if it is already due.
+    if (!timerDue) speakGuidance(timerAnswer);
+    return;
+  }
   voiceStatus.textContent = '次の手順を確認中…';
   try {
     const result = await logic.handleUtterance(text, state, signal);
