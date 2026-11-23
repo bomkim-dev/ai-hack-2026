@@ -454,7 +454,6 @@ setControls(false);
 updateChoice();
 record.hidden = !canRecord;
 talk.hidden = !canTalk;
-if (demo || !canRecord) get('input-help').textContent = '調理状況を文字で入力してください。';
 
 try {
   logic = demo ? await import('./demo-logic.js') : await import('./cooking-logic.js');
