@@ -6,16 +6,13 @@ import { playSpeech, playTimerChime, prepareSpeech } from './voice/speech-output
 const byId = id => document.getElementById(id);
 const recipe = byId('recipe');
 const cooking = byId('cooking');
-const instruction = byId('instruction');
 const feedback = byId('feedback');
 const timer = byId('timer');
 const timerLabel = byId('timer-label');
-const timerNote = byId('timer-note');
 const remaining = byId('remaining');
 const mic = byId('mic-button');
 const interrupt = byId('interrupt');
 const utterance = byId('utterance');
-const conversationHistory = byId('conversation-history');
 const messages = byId('messages');
 const typing = document.querySelector('[data-open="typing"]');
 
@@ -39,6 +36,7 @@ const voiceLabels = {
 };
 
 let current;
+let currentGuide;
 let deadline = 0;
 let ticker;
 let conversation;
@@ -51,21 +49,18 @@ const timerMessage = '茹で時間が終わりました。';
 const durationPrompt = '袋に書いてある茹で時間を教えてください。';
 const waitForPasta = 'パスタはまだ茹でています。タイマーが鳴ったら、茹で具合を確認して湯を切ってください。';
 
-function rememberMessage(role, text) {
-  history = [...history.slice(-7), { role, text: text.slice(0, 500) }];
-}
-
-function addMessage(author, text) {
-  conversationHistory.hidden = false;
+function addMessage(role, text, followLatest = role === 'user') {
+  if (!text) return '';
   const atLatest = messages.scrollHeight - messages.clientHeight - messages.scrollTop < 24;
   const item = document.createElement('li');
   const name = document.createElement('small');
-  name.textContent = author;
-  item.classList.toggle('user', author === 'あなた');
+  name.textContent = role === 'user' ? 'あなた' : 'ミミシェフ';
+  item.className = role;
   item.append(name, text);
   messages.append(item);
-  if (atLatest) messages.scrollTop = messages.scrollHeight;
-  rememberMessage(author === 'あなた' ? 'user' : 'assistant', text);
+  if (atLatest || followLatest) messages.scrollTop = messages.scrollHeight;
+  history = [...history.slice(-7), { role, text: text.slice(0, 500) }];
+  return text;
 }
 
 function setFeedback(text) {
@@ -94,8 +89,8 @@ function stopConversation(message) {
 }
 
 function reportVoiceProblem(message, spokenMessage) {
-  stopConversation(message);
-  readAloud(spokenMessage);
+  stopConversation(message === spokenMessage ? undefined : message);
+  announce(spokenMessage);
 }
 
 function stopSpeech() {
@@ -130,6 +125,10 @@ function readAloud(message) {
   continueConversation();
 }
 
+function announce(message) {
+  readAloud(addMessage('assistant', message));
+}
+
 function playAnnouncement(message) {
   const speech = new AbortController();
   activeSpeech = speech;
@@ -149,7 +148,6 @@ function clearTimer() {
   clearInterval(ticker);
   deadline = 0;
   timer.hidden = true;
-  timerNote.hidden = true;
   timer.classList.remove('expired');
   timerPending = undefined;
 }
@@ -165,15 +163,14 @@ function tick() {
   deadline = 0;
   timer.classList.add('expired');
   timerLabel.textContent = '茹で時間終了';
-  timerNote.hidden = false;
   const relevantSpeech = speechQueue.map(message => message
     .replace(waitForPasta, '')
     .replace(/(?:\d+分(?:\d+秒)?|\d+秒)のタイマーを始めました。/u, '')
     .trim()).filter(Boolean);
   speechQueue.splice(0, speechQueue.length, ...relevantSpeech);
-  if (current.stepId === 'drain') instruction.textContent = current.message;
-  timerPending = timerMessage + (current.stepId === 'drain' ? current.message : timerNote.textContent);
-  rememberMessage('assistant', timerPending);
+  if (current.stepId === 'drain') currentGuide = current.message;
+  timerPending = addMessage('assistant', timerMessage + (current.stepId === 'drain'
+    ? currentGuide : 'パスタの茹で具合を確認してください。'));
   conversation?.capture?.setListening(false);
   playTimerChime();
   continueConversation();
@@ -181,26 +178,24 @@ function tick() {
 
 function render(result) {
   current = result;
-  instruction.textContent = result.stepId === 'drain' && deadline ? waitForPasta : result.message;
-  rememberMessage('assistant', instruction.textContent);
+  currentGuide = result.stepId === 'drain' && deadline ? waitForPasta : result.message;
   utterance.placeholder = result.done ? '' : '例：' + examples[result.stepId];
   byId('voice-dock').hidden = Boolean(result.done);
   byId('finish-dock').hidden = !result.done;
   if (result.done) byId('finish').focus();
 }
 
-function presentTurn(text, { advance, timerSeconds, reply: response }) {
+function presentTurn({ advance, timerSeconds, reply: response }) {
   setFeedback('');
-  addMessage('あなた', text);
   const result = advance ? advanceCooking(current, timerSeconds) : current;
   if (advance && result.awaitingDuration) {
     current = result;
-    instruction.textContent = durationPrompt;
+    currentGuide = durationPrompt;
     utterance.placeholder = '例：7分';
+    const message = response?.includes(durationPrompt) ? response : [response, durationPrompt].filter(Boolean).join(' ');
+    return addMessage('assistant', message);
   }
-  if (response) addMessage('ミミシェフ', response);
-  if (!advance) return response;
-  if (result.awaitingDuration) return response?.includes(durationPrompt) ? response : [response, durationPrompt].filter(Boolean).join(' ');
+  if (!advance) return addMessage('assistant', response);
 
   let timerStarted;
   if (result.timerSeconds) {
@@ -217,17 +212,19 @@ function presentTurn(text, { advance, timerSeconds, reply: response }) {
     clearTimer();
   }
   render(result);
-  return [response, timerStarted, instruction.textContent].filter(Boolean).join(' ');
+  return addMessage('assistant', [response, timerStarted, currentGuide].filter(Boolean).join(' '), true);
 }
 
 async function respond(text, signal) {
   signal.throwIfAborted();
+  const previousHistory = history;
+  addMessage('user', text);
   const phrase = text.normalize('NFKC').trim().replace(/[。.!?]+$/u, '');
   if (/^(?:もう一(?:回|度)(?:お願い(?:します)?)?|今の手順(?:を|は)?(?:もう一(?:回|度)|教えて(?:ください)?)?)$/u.test(phrase)) {
-    return presentTurn(text, { advance: false, reply: instruction.textContent });
+    return presentTurn({ advance: false, reply: currentGuide });
   }
   const quick = quickCookingTurn(text, current.stepId, current.awaitingDuration);
-  if (quick) return presentTurn(text, quick);
+  if (quick) return presentTurn(quick);
 
   const response = await fetch('/api/respond', {
     method: 'POST',
@@ -237,14 +234,14 @@ async function respond(text, signal) {
       stepId: current.stepId,
       awaitingDuration: Boolean(current.awaitingDuration),
       remainingSeconds: timer.hidden ? null : Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
-      history,
+      history: previousHistory,
     }),
     signal,
   });
   const result = await response.json().catch(() => null);
   signal.throwIfAborted();
   if (!response.ok || !result) throw new Error(result?.error || '返答を受け取れませんでした。もう一度お試しください。');
-  return presentTurn(text, result);
+  return presentTurn(result);
 }
 
 function returnToRecipe() {
@@ -267,10 +264,10 @@ function beginCooking() {
   history = [];
   utterance.value = '';
   setFeedback('');
-  conversationHistory.hidden = true;
   recipe.hidden = true;
   cooking.hidden = false;
   render(startCooking());
+  addMessage('assistant', currentGuide);
   byId('cooking-title').focus();
   window.scrollTo(0, 0);
 }
@@ -279,8 +276,7 @@ async function startConversation(readOpening = false) {
   prepareSpeech();
   if (!supportsConversation()) {
     const message = 'このブラウザでは会話モードを使えません。文字で入力できます。';
-    setFeedback(message);
-    readAloud(message);
+    announce(message);
     return;
   }
 
@@ -311,7 +307,7 @@ async function startConversation(readOpening = false) {
           reportVoiceProblem(error.message, '音声入力を続けられません。文字で入力できます。');
         } else {
           setFeedback(error.message);
-          readAloud(transcribing
+          announce(transcribing
             ? '聞き取れませんでした。もう一度話してください。'
             : '返答を受け取れませんでした。もう一度話してください。');
         }
@@ -330,7 +326,7 @@ async function startConversation(readOpening = false) {
     };
     session.capture = await openConversation(signal, onTurn, onFailure);
     if (signal.aborted) return;
-    if (readOpening) readAloud(instruction.textContent);
+    if (readOpening) readAloud(currentGuide);
     else continueConversation();
   } catch (error) {
     if (signal.aborted) return;
@@ -354,7 +350,7 @@ byId('start').addEventListener('click', () => {
 byId('start-text').addEventListener('click', () => {
   beginCooking();
   openTyping();
-  readAloud(instruction.textContent);
+  readAloud(currentGuide);
 });
 mic.addEventListener('click', () => {
   if (conversation) {
@@ -390,7 +386,7 @@ byId('turn').addEventListener('submit', async event => {
   } catch (error) {
     if (!turn.signal.aborted) {
       setFeedback(error.message || '返答を受け取れませんでした。');
-      readAloud('返答を受け取れませんでした。もう一度入力してください。');
+      announce('返答を受け取れませんでした。もう一度入力してください。');
     }
   } finally {
     if (typedTurn === turn) {

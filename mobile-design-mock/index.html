@@ -57,27 +57,14 @@
         </button>
       </header>
       <div class="cooking-content">
-        <section class="next-step" aria-labelledby="step-label">
-          <img class="next-step-avatar" src="./assets/mimichef-icon.png" alt="" width="32" height="32">
-          <div>
-            <h2 id="step-label">ミミシェフ <span>次にやること</span></h2>
-            <p id="instruction" role="status"></p>
-          </div>
-        </section>
         <section class="timer" id="timer" aria-labelledby="timer-label" hidden>
           <svg><use href="#clock"/></svg>
-          <div>
-            <h2 id="timer-label">茹で時間</h2>
-            <p id="timer-note" role="status" hidden>パスタの茹で具合を確認してください。</p>
-          </div>
+          <h2 id="timer-label">茹で時間</h2>
           <output id="remaining" role="timer" aria-live="off"></output>
         </section>
+        <ol id="messages" class="messages" tabindex="0" role="log" aria-label="調理の会話"></ol>
         <p id="feedback" class="feedback" role="status" hidden></p>
         <div id="finish-dock" class="finish-dock" hidden><button id="finish" class="primary" type="button">調理前に戻る</button></div>
-        <section id="conversation-history" class="conversation-history" aria-labelledby="history-title" hidden>
-          <h2 id="history-title">会話履歴</h2>
-          <ol id="messages" class="messages" tabindex="0" role="log" aria-labelledby="history-title"></ol>
-        </section>
       </div>
       <div id="voice-dock" class="voice-dock">
         <button id="mic-button" class="mic-button" type="button" data-state="idle" aria-pressed="false" aria-label="会話モード" aria-describedby="voice-status">

@@ -44,43 +44,17 @@ svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentCo
 .cooking-bar h1 { font-size: 1rem; font-weight: 650; }
 .cooking-bar h1:focus { outline: none; }
 .cooking-bar .wordmark { margin-inline-start: auto; }
-#cooking { display: flex; flex-direction: column; min-height: 100dvh; }
-.cooking-content { padding: 0 1.4rem max(1.35rem, env(safe-area-inset-bottom)); }
-.next-step {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: .65rem;
-  margin-block: 1.15rem 1rem;
-}
-.next-step-avatar { border-radius: .55rem; }
-.next-step h2 {
+#cooking { display: flex; flex-direction: column; height: 100dvh; }
+#cooking > .topbar { flex-shrink: 0; }
+.cooking-content {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: .2rem .55rem;
-  margin-bottom: .4rem;
-  color: var(--green);
-  font-size: .875rem;
-  font-weight: 700;
-}
-.next-step h2 span { color: var(--muted); font-size: .8125rem; font-weight: 500; }
-.next-step p {
-  width: fit-content;
-  max-width: 100%;
-  padding: .65rem .9rem;
-  border-radius: .25rem 1rem 1rem;
-  background: #eef1e9;
-  font-size: clamp(1.25rem, 5.8vw, 1.65rem);
-  font-weight: 650;
-  line-height: 1.5;
-  line-break: strict;
-  text-wrap: balance;
-  overflow-wrap: anywhere;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: .9rem 1.4rem .65rem;
 }
 .timer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .6rem; min-height: 3.75rem; padding: .65rem .75rem; margin-bottom: 1rem; border-block: 1px solid var(--line); color: var(--green); }
 .timer h2 { font-size: .885rem; font-weight: 650; }
-.timer p { margin-top: .18rem; font-size: .8125rem; line-height: 1.45; }
 .timer output { font-variant-numeric: tabular-nums; font-size: 1.65rem; font-weight: 650; letter-spacing: -.035em; }
 .timer.expired { color: #802f1d; background: #f7e9df; border-color: #e4c8b8; }
 .feedback { margin-bottom: 1rem; padding-left: .65rem; border-left: 2px solid var(--line); color: var(--muted); font-size: .9rem; line-height: 1.55; }
@@ -89,6 +63,7 @@ svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentCo
   z-index: 1;
   bottom: 0;
   display: grid;
+  flex-shrink: 0;
   gap: .2rem;
   margin-top: auto;
   padding: .65rem 1.4rem max(.4rem, env(safe-area-inset-bottom));
@@ -138,12 +113,38 @@ svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentCo
 .fallbacks .text-button { color: var(--green); }
 .fallbacks .interrupt { background: #e6eee2; border-radius: .5rem; font-weight: 700; }
 .fallbacks .text-button:focus-visible { outline-offset: -4px; }
-.conversation-history { margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--line); }
-.conversation-history h2 { font-size: .9rem; font-weight: 650; }
-.messages { list-style: none; margin: .6rem 0 0; padding: .15rem .15rem .35rem; display: grid; gap: .65rem; max-height: clamp(12rem, 32dvh, 22rem); overflow-y: auto; }
-.messages li { justify-self: start; max-width: 90%; border-radius: .55rem; background: #eee9de; padding: .55rem .7rem; font-size: .9rem; line-height: 1.55; overflow-wrap: anywhere; }
-.messages li.user { justify-self: end; background: #e0eadc; }
-.messages small { display: block; margin-bottom: .12rem; color: var(--muted); font-size: .8125rem; }
+.messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: .75rem;
+  min-height: 0;
+  margin: 0;
+  padding: .15rem .15rem .4rem;
+  list-style: none;
+  overflow-y: auto;
+}
+.messages li {
+  align-self: start;
+  max-width: 90%;
+  padding: .65rem .85rem;
+  border-radius: .25rem 1rem 1rem;
+  background: #eee9de;
+  line-height: 1.6;
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+.messages li.assistant:last-child { background: #eef1e9; }
+.messages li.user { align-self: end; border-radius: 1rem .25rem 1rem 1rem; background: #e0eadc; }
+.messages small { display: flex; align-items: center; gap: .3rem; margin-bottom: .2rem; color: var(--muted); font-size: .8125rem; }
+.messages .assistant small::before {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: .25rem;
+  background: url("./assets/mimichef-icon.png") center / cover;
+  content: "";
+}
 
 dialog { max-width: min(29rem, 100vw); width: 100%; max-height: 81dvh; margin: auto auto 0; padding: 1rem 1.4rem max(1rem, env(safe-area-inset-bottom)); border: 0; border-radius: 1.1rem 1.1rem 0 0; background: var(--paper); color: var(--ink); }
 dialog::backdrop { background: #20282070; }
@@ -156,6 +157,6 @@ dialog p { padding-block: .35rem .8rem; line-height: 1.55; }
 @media (min-width: 40rem) {
   body { padding: 1.25rem; }
   .app { min-height: calc(100dvh - 2.5rem); border: 1px solid #dad7cc; border-radius: 1rem; overflow: clip; }
-  #cooking { min-height: calc(100dvh - 2.5rem - 2px); }
+  #cooking { height: calc(100dvh - 2.5rem - 2px); }
   dialog { margin-bottom: 1.25rem; border-radius: 1.1rem; }
 }
