@@ -1,15 +1,15 @@
 // Local UI fixture. The real cooking module belongs to role B.
-const standard = [
+const standard = prepare => [
   ['boil', 'お湯を沸かしましょう。', /沸いた/u],
   ['add', '沸いたお湯にパスタを入れましょう。', /入れた/u],
-  ['prepare', 'パスタを茹でている間に具材を準備しましょう。', /切った|開けた|準備/u],
+  ['prepare', `パスタを茹でている間に、${prepare}ましょう。`, /切った|開けた|準備/u],
   ['fry', '具材を炒め、火を止めましょう。', /炒めた|火を止めた/u],
   ['drain', '茹で具合を確認し、湯を切りましょう。', /湯を切った/u],
   ['season', '具材と混ぜ、味を整えましょう。', /味付け|味を整/u],
   ['serve', 'お皿に盛り付けましょう。', /盛り付け|盛りつけ/u],
 ];
-const onePan = [
-  ['prepare', '玉ねぎと具材を準備しましょう。', /切った|開けた|準備/u],
+const onePan = prepare => [
+  ['prepare', `玉ねぎを薄切りにして、${prepare}ましょう。`, /切った|開けた|準備/u],
   ['fry', '深めのフライパンで玉ねぎを炒め、具材を加えましょう。', /炒めた|具材を入れた/u],
   ['boil', '同じフライパンで水を沸かしましょう。', /沸いた/u],
   ['add', 'パスタを入れましょう。袋に書いてある茹で時間を教えてください。', /入れた/u],
@@ -24,7 +24,11 @@ function turn(state) {
 }
 
 export function startCooking(context) {
-  return turn({ steps: context.method === 'onePan' ? onePan : standard, index: 0 });
+  const prepare = context.protein === 'tuna'
+    ? 'ツナ缶を開けて汁気を切り'
+    : 'ベーコンを1cm幅に切り';
+  const steps = context.method === 'onePan' ? onePan(prepare) : standard(prepare);
+  return turn({ steps, index: 0 });
 }
 
 export function handleUtterance(text, state) {

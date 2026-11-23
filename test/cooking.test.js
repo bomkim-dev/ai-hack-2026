@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { handleCookingTurn, startCooking } from '../server/cooking.js';
+import { startCooking as startDemo, handleUtterance as advanceDemo } from '../demo-logic.js';
 import { GeminiError, interpretWithGemini } from '../server/gemini.js';
 
 const demoTime = 1_800_000_000_000;
@@ -25,6 +26,7 @@ test('pasta goes on a timer once and can cook while the user prepares the toppin
   const ready = await turn('お湯は沸いた。玉ねぎも切った', undefined, update(['boilWater', 'cutOnion']));
   const cooking = await turn('入れた。７分', ready.progress, update(['addPasta'], [], 420));
   assert.equal(cooking.progress.currentStep, 'cutBacon');
+  assert.match(cooking.guidance, /ベーコンを1cm幅に切り/);
   assert.deepEqual(cooking.timer, { action: 'start', durationSeconds: 420, endsAt: demoTime + 420_000 });
 
   const repeat = await turn('もう一回', cooking.progress, { ...update(), action: 'repeat' });
@@ -34,6 +36,17 @@ test('pasta goes on a timer once and can cook while the user prepares the toppin
   const duplicate = await turn('パスタを入れた。７分', cooking.progress, update(['addPasta'], [], 420), demoTime + 1000);
   assert.equal(duplicate.progress.timerEndsAt, cooking.progress.timerEndsAt);
   assert.equal(duplicate.timer, null);
+});
+
+test('the demo names the ingredient and how to prepare it', () => {
+  const start = startDemo({ method: 'standard', protein: 'bacon' });
+  const boiled = advanceDemo('お湯は沸いた', start.state);
+  const bacon = advanceDemo('パスタを入れた。7分', boiled.state);
+  assert.match(bacon.message, /ベーコンを1cm幅に切り/);
+  assert.equal(bacon.timerSeconds, 420);
+
+  const tuna = startDemo({ method: 'onePan', protein: 'tuna' });
+  assert.match(tuna.message, /玉ねぎを薄切り.*ツナ缶を開けて汁気を切り/);
 });
 
 test('an elapsed timer guides the user to drain the pasta and the recipe can finish', async () => {
