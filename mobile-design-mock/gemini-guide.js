@@ -1,5 +1,5 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { explicitlyCompleted, maxTimerSeconds, stepDetails } from './demo-logic.js';
+import { explicitlyCompleted, maxTimerSeconds, quickCookingTurn, stepDetails } from './demo-logic.js';
 
 const responseSchema = {
   type: 'object',
@@ -69,6 +69,8 @@ export async function respondWithGemini(input, {
   signal,
 } = {}) {
   const turn = readTurn(input);
+  const quick = quickCookingTurn(turn.text, turn.stepId, turn.awaitingDuration);
+  if (quick) return quick;
   if (!apiKey?.trim() || !/^gemini-[a-z0-9.-]+$/.test(model)) {
     throw new GuideError('プレビューの Gemini の設定を確認してください。', 503);
   }

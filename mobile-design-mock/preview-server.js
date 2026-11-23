@@ -11,6 +11,7 @@ const files = new Map([
   ['/styles.css', ['./styles.css', 'text/css; charset=utf-8']],
   ['/app.js', ['./app.js', 'text/javascript; charset=utf-8']],
   ['/demo-logic.js', ['./demo-logic.js', 'text/javascript; charset=utf-8']],
+  ['/cooking-help.js', ['../cooking-help.js', 'text/javascript; charset=utf-8']],
   ['/pasta.jpg', ['./pasta.jpg', 'image/jpeg']],
   ['/assets/mimichef-icon.png', ['../assets/mimichef-icon.png', 'image/png']],
   ['/voice/conversation.js', ['../conversation.js', 'text/javascript; charset=utf-8']],

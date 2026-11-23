@@ -104,7 +104,9 @@ svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentCo
 @media (prefers-reduced-motion: reduce) {
   .mic-button[data-state="listening"] .voice-wave i { animation: none; }
 }
+.fallbacks { display: flex; gap: .35rem; }
 .fallbacks .text-button { color: var(--green); }
+.fallbacks .interrupt { background: #e6eee2; border-radius: .5rem; font-weight: 700; }
 .fallbacks .text-button:focus-visible { outline-offset: -4px; }
 .conversation-history { margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--line); }
 .conversation-history h2 { font-size: .9rem; font-weight: 650; }

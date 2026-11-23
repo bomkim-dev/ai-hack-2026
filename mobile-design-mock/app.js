@@ -1,4 +1,4 @@
-import { advanceCooking, startCooking } from './demo-logic.js';
+import { advanceCooking, quickCookingTurn, startCooking } from './demo-logic.js';
 import { openConversation, supportsConversation } from './voice/conversation.js';
 import { transcribe } from './voice/cooking-api.js';
 import { playSpeech, playTimerChime, prepareSpeech } from './voice/speech-output.js';
@@ -13,6 +13,7 @@ const timerLabel = byId('timer-label');
 const timerNote = byId('timer-note');
 const remaining = byId('remaining');
 const mic = byId('mic-button');
+const interrupt = byId('interrupt');
 const utterance = byId('utterance');
 const conversationHistory = byId('conversation-history');
 const messages = byId('messages');
@@ -74,6 +75,7 @@ function updateVoice(status, busy = false) {
   mic.dataset.state = status;
   byId('voice-status').textContent = voiceLabels[status];
   byId('voice-stop').hidden = !conversation;
+  interrupt.hidden = !(conversation?.capture && ['speaking', 'responding', 'transcribing'].includes(status) && !current.done);
   typing.disabled = busy;
   mic.disabled = busy && !conversation;
 }
@@ -93,18 +95,22 @@ function stopSpeech() {
   speech?.abort();
 }
 
+function startListening() {
+  if (current.done) {
+    stopConversation();
+    return;
+  }
+  updateVoice('listening');
+  conversation.capture.setListening(true);
+}
+
 function continueConversation() {
-  if (activeSpeech || conversation?.processing || (conversation && !conversation.capture)) return;
+  if (activeSpeech || conversation?.turn || (conversation && !conversation.capture)) return;
   if (timerPending) {
     timerPending = false;
     speak(timerMessage);
   } else if (conversation) {
-    if (current.done) {
-      stopConversation();
-      return;
-    }
-    updateVoice('listening');
-    conversation.capture.setListening(true);
+    startListening();
   }
 }
 
@@ -189,6 +195,10 @@ function presentTurn(text, { advance, timerSeconds, reply: response }) {
 }
 
 async function respond(text, signal) {
+  signal.throwIfAborted();
+  const quick = quickCookingTurn(text, current.stepId, current.awaitingDuration);
+  if (quick) return presentTurn(text, quick);
+
   const response = await fetch('/api/respond', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -248,20 +258,25 @@ async function startConversation(readOpening = false) {
   updateVoice('starting', true);
   try {
     const onTurn = async audio => {
-      if (signal.aborted || activeSpeech || session.processing) return;
-      session.processing = true;
+      if (signal.aborted || activeSpeech || session.turn) return;
+      const turn = new AbortController();
+      session.turn = turn;
+      const turnSignal = AbortSignal.any([signal, turn.signal]);
       updateVoice('transcribing', true);
       try {
-        const text = await transcribe(audio, signal);
-        signal.throwIfAborted();
+        const text = await transcribe(audio, turnSignal);
+        turnSignal.throwIfAborted();
         updateVoice('responding', true);
-        const message = await respond(text, signal);
+        const message = await respond(text, turnSignal);
+        turnSignal.throwIfAborted();
         speak(message);
       } catch (error) {
-        if (!signal.aborted) stopConversation(error.message);
+        if (!turnSignal.aborted) stopConversation(error.message);
       } finally {
-        session.processing = false;
-        continueConversation();
+        if (session.turn === turn) {
+          session.turn = undefined;
+          continueConversation();
+        }
       }
     };
     const onFailure = () => {
@@ -301,6 +316,14 @@ mic.addEventListener('click', () => {
   } else {
     void startConversation();
   }
+});
+interrupt.addEventListener('click', () => {
+  if (!conversation?.capture || current.done) return;
+  conversation.turn?.abort();
+  conversation.turn = undefined;
+  stopSpeech();
+  startListening();
+  mic.focus({ preventScroll: true });
 });
 byId('turn').addEventListener('submit', async event => {
   event.preventDefault();
