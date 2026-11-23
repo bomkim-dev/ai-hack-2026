@@ -1,3 +1,5 @@
+import { getRecipe } from './recipes.js';
+
 export const foods = {
   pasta: { name: 'パスタ', unit: 'g', amount: 100, step: 1, pattern: /パスタ|スパゲッティ/u },
   onion: { name: '玉ねぎ', unit: '個', amount: 0.25, step: 0.25, pattern: /玉[ねネ]ギ|玉ねぎ|たまねぎ|玉葱/u },
@@ -41,14 +43,19 @@ export function foodAvailability(item, amount) {
   return item.amount == null ? 'unknown' : item.amount >= amount ? 'present' : 'absent';
 }
 
-export function recommend(pantry) {
+export function recommend(pantry, { demo = false, recipeId } = {}) {
   const { stock, tools } = pantry;
-  const protein = foodAvailability(stock.bacon, foods.bacon.amount) !== 'present' &&
-    foodAvailability(stock.tuna, foods.tuna.amount) === 'present' ? 'tuna' : 'bacon';
+  const baconAvailable = foodAvailability(stock.bacon, foods.bacon.amount) === 'present';
+  const tunaAvailable = foodAvailability(stock.tuna, foods.tuna.amount) === 'present';
   const pan = tools.deepPan === 'present' ? 'present' : tools.pan ?? 'unknown';
   const required = { pot: tools.pot ?? 'unknown', pan, strainer: tools.strainer ?? 'unknown' };
   const standardReady = Object.values(required).every(status => status === 'present');
-  const method = !standardReady && tools.deepPan === 'present' ? 'onePan' : 'standard';
+  const onePanReady = tools.deepPan === 'present';
+  const canSwitchToOnePan = !standardReady && onePanReady;
+  const selected = !demo && getRecipe(recipeId);
+  const protein = selected?.protein
+    ?? (tunaAvailable && (!baconAvailable || (!demo && canSwitchToOnePan)) ? 'tuna' : 'bacon');
+  const method = selected?.method ?? ((demo ? canSwitchToOnePan : protein === 'tuna') ? 'onePan' : 'standard');
   const toolIds = method === 'onePan' ? ['deepPan'] :
     ['pot', tools.deepPan === 'present' ? 'deepPan' : 'pan', 'strainer'];
   const recipeIngredients = ['pasta', 'onion', protein].map(id => ({ id, amount: foods[id].amount }));
@@ -59,7 +66,7 @@ export function recommend(pantry) {
     toolIds,
     missingFood: recipeIngredients.map(({ id, amount }) => ({ id, status: foodAvailability(stock[id], amount) }))
       .filter(item => item.status !== 'present'),
-    missingTools: Object.entries(method === 'onePan' ? { deepPan: 'present' } : required)
+    missingTools: Object.entries(method === 'onePan' ? { deepPan: tools.deepPan ?? 'unknown' } : required)
       .filter(([, status]) => status !== 'present').map(([id, status]) => ({ id, status })),
   };
 }

@@ -14,14 +14,17 @@ const byStep = {
   boilWater: { heat: '強火でお湯を沸かしてください。' },
   boil: { heat: '強火でお湯を沸かしてください。' },
   cutOnion: { cut: '玉ねぎは薄切りにしてください。' },
+  openTuna: { cut: 'ツナ缶を開けて汁気を切ってください。' },
   cutBacon: { cut: 'ベーコンは1cm幅に切ってください。' },
   addPasta: boiling,
   add: boiling,
   askDuration: boiling,
   waitForPasta: boiling,
   saute: saute,
+  sauteOnion: saute,
   fry: saute,
   drain: { readiness: boiling.readiness },
+  finishOnePan: { heat: 'パスタの硬さを確かめ、よければ火を止めてください。', readiness: boiling.readiness },
 };
 
 export function answerCookingQuestion(text, stepId, { protein, method } = {}) {

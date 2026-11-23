@@ -1,51 +1,53 @@
 import { confirmPastaTiming, interpretPastaExtension } from '../pasta-confirmation.js';
+import { defaultRecipeId, getRecipe } from '../recipes.js';
 
-const steps = [
-  { id: 'boilWater', description: 'パスタ用のお湯が沸いた', guide: 'パスタ用のお湯を沸かしてください。' },
-  { id: 'cutOnion', description: '玉ねぎを切った', guide: '玉ねぎを薄切りにしてください。' },
-  { id: 'addPasta', description: 'パスタをお湯に入れた', guide: 'パスタを入れてください。入れたら、袋の茹で時間も教えてください。' },
-  { id: 'cutBacon', description: 'ベーコンを切った', guide: 'パスタを茹でている間に、ベーコンを1cm幅に切りましょう。' },
-  { id: 'saute', description: 'ベーコンと玉ねぎを炒め終えた。玉ねぎが透き通ったという報告も含む', guide: 'ベーコンと玉ねぎをオリーブ油で炒め、玉ねぎが透き通ったら火を止めてください。' },
-  { id: 'drain', description: 'パスタの湯を切った', guide: 'パスタの茹で具合を確認し、よければ湯を切ってください。' },
-  { id: 'season', description: 'パスタと具材を混ぜ、味付けを終えた', guide: 'パスタと具材を混ぜ、塩こしょうで味を整えてください。' },
-  { id: 'plate', description: 'パスタを皿に盛り付けた', guide: 'お皿に盛り付けてください。' },
-];
-
-export const recipeSteps = steps.map(({ id, description }) => ({ id, description }));
 export const maxTimerSeconds = 120 * 60;
-const stepIds = new Set(steps.map(({ id }) => id));
-const guides = new Map(steps.map(({ id, guide }) => [id, guide]));
-guides.set('askDuration', '袋に書いてある茹で時間を教えてください。');
-guides.set('waitForPasta', 'パスタのタイマーが鳴るまで待ちましょう。');
-guides.set('finished', '完成です。おつかれさまでした。');
+const sharedGuides = {
+  askDuration: '袋に書いてある茹で時間を教えてください。',
+  waitForPasta: 'パスタのタイマーが鳴るまで待ちましょう。',
+  finished: '完成です。おつかれさまでした。',
+};
+
+function guideFor(recipe, step) {
+  return Object.hasOwn(sharedGuides, step) ? sharedGuides[step] : recipe.steps.find(item => item.id === step)?.guide;
+}
+
+function readRecipe(id = defaultRecipeId) {
+  const recipe = getRecipe(id);
+  if (!recipe) throw new CookingInputError('対応しているレシピを選んでください。');
+  return recipe;
+}
 
 export class CookingInputError extends Error {}
 
-function initialProgress() {
-  return { completed: [], currentStep: 'boilWater', timerEndsAt: null };
+function initialProgress(recipe) {
+  return { recipeId: recipe.id, completed: [], currentStep: recipe.beforePasta[0], timerEndsAt: null };
 }
 
-function readProgress(progress) {
-  if (progress === undefined) return initialProgress();
+function readProgress(progress, recipe) {
+  if (progress === undefined) return initialProgress(recipe);
+
+  const stepIds = new Set(recipe.steps.map(({ id }) => id));
 
   if (!progress || !Array.isArray(progress.completed)
       || !progress.completed.every(id => stepIds.has(id))
       || new Set(progress.completed).size !== progress.completed.length
-      || !guides.has(progress.currentStep)
+      || typeof progress.currentStep !== 'string' || !guideFor(recipe, progress.currentStep)
       || (progress.pendingPastaSeconds !== undefined
         && (progress.currentStep !== 'addPasta' || progress.completed.includes('addPasta')
           || !Number.isSafeInteger(progress.pendingPastaSeconds) || progress.pendingPastaSeconds < 1
           || progress.pendingPastaSeconds > maxTimerSeconds))
       || (progress.awaitingExtraCookTime !== undefined
         && (progress.awaitingExtraCookTime !== true || progress.timerEndsAt === null
-          || !progress.completed.includes('addPasta') || progress.completed.includes('drain')))
+          || !progress.completed.includes('addPasta') || progress.completed.includes(recipe.finishBoiling)))
       || (progress.timerEndsAt !== null
         && (!Number.isSafeInteger(progress.timerEndsAt) || progress.timerEndsAt <= 0
-          || !progress.completed.includes('addPasta') || progress.completed.includes('drain')))) {
+          || !progress.completed.includes('addPasta') || progress.completed.includes(recipe.finishBoiling)))) {
     throw new CookingInputError('進捗には前回のレスポンスの progress を指定してください。');
   }
 
   return {
+    recipeId: recipe.id,
     completed: progress.completed,
     currentStep: progress.currentStep,
     timerEndsAt: progress.timerEndsAt,
@@ -54,33 +56,32 @@ function readProgress(progress) {
   };
 }
 
-function nextStep(completed, timerEndsAt, now) {
+function nextStep(recipe, completed, timerEndsAt, now) {
   const has = id => completed.has(id);
+  const firstMissing = ids => ids.find(id => !has(id));
+  const pastaFinished = has(recipe.finishBoiling);
 
-  if (has('addPasta') && !has('drain')) {
+  if (has('addPasta') && !pastaFinished) {
     if (timerEndsAt === null) return 'askDuration';
-    if (timerEndsAt <= now) return 'drain';
+    if (timerEndsAt <= now) return recipe.finishBoiling;
   }
-  if (!has('addPasta') && !has('drain')) {
-    if (!has('boilWater')) return 'boilWater';
-    if (!has('cutOnion')) return 'cutOnion';
-    return 'addPasta';
+  if (!has('addPasta') && !pastaFinished) {
+    return firstMissing(recipe.beforePasta) ?? 'addPasta';
   }
-  if (!has('cutOnion') && !has('saute')) return 'cutOnion';
-  if (!has('cutBacon') && !has('saute')) return 'cutBacon';
-  if (!has('saute')) return 'saute';
-  if (!has('drain')) return 'waitForPasta';
-  if (!has('season')) return 'season';
-  if (!has('plate')) return 'plate';
-  return 'finished';
+  const toppingReady = recipe.duringPasta.length && has(recipe.duringPasta.at(-1));
+  return (!toppingReady && firstMissing(recipe.duringPasta))
+    || (!pastaFinished && 'waitForPasta')
+    || firstMissing(recipe.afterPasta)
+    || 'finished';
 }
 
-function reply(progress, guidance = guides.get(progress.currentStep), timer = null) {
+function reply(recipe, progress, guidance = guideFor(recipe, progress.currentStep), timer = null) {
   return { progress, guidance, timer, finished: progress.currentStep === 'finished' };
 }
 
-export function startCooking() {
-  return reply(initialProgress());
+export function startCooking(recipeId) {
+  const recipe = readRecipe(recipeId);
+  return reply(recipe, initialProgress(recipe));
 }
 
 export async function handleCookingTurn(input, interpret, clock = Date.now) {
@@ -88,15 +89,16 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
     throw new CookingInputError('JSON オブジェクトを指定してください。');
   }
 
-  const progress = readProgress(input.progress);
+  const recipe = readRecipe(input.progress?.recipeId);
+  const progress = readProgress(input.progress, recipe);
   const receivedAt = clock();
   const completed = new Set(progress.completed);
 
   if (input.event === 'timerElapsed') {
-    if (progress.timerEndsAt === null || receivedAt < progress.timerEndsAt || progress.currentStep === 'drain') {
-      return reply(progress, null);
+    if (progress.timerEndsAt === null || receivedAt < progress.timerEndsAt || progress.currentStep === recipe.finishBoiling) {
+      return reply(recipe, progress, null);
     }
-    return reply({ ...progress, currentStep: nextStep(completed, progress.timerEndsAt, receivedAt) });
+    return reply(recipe, { ...progress, currentStep: nextStep(recipe, completed, progress.timerEndsAt, receivedAt) });
   }
 
   if (input.event !== undefined || typeof input.utterance !== 'string'
@@ -107,19 +109,20 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
   const text = input.utterance.trim();
   const timerExpired = progress.timerEndsAt !== null && progress.timerEndsAt <= receivedAt;
   const extension = interpretPastaExtension(text, {
-    timing: completed.has('drain') ? 'drained' : timerExpired ? 'expired' : null,
+    timing: completed.has(recipe.finishBoiling) ? 'drained' : timerExpired ? 'expired' : null,
     awaitingDuration: progress.awaitingExtraCookTime,
     maxSeconds: maxTimerSeconds,
   });
   if (extension) {
     if (!extension.seconds) {
       const next = extension.awaitingDuration ? { ...progress, awaitingExtraCookTime: true } : progress;
-      return reply(next, extension.message);
+      return reply(recipe, next, extension.message);
     }
     const endsAt = receivedAt + extension.seconds * 1000;
-    return reply({
+    return reply(recipe, {
+      recipeId: recipe.id,
       completed: progress.completed,
-      currentStep: nextStep(completed, endsAt, receivedAt),
+      currentStep: nextStep(recipe, completed, endsAt, receivedAt),
       timerEndsAt: endsAt,
     }, extension.message, { action: 'start', durationSeconds: extension.seconds, endsAt });
   }
@@ -128,16 +131,16 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
     ? confirmPastaTiming(text, progress.pendingPastaSeconds, maxTimerSeconds)
     : null;
   if (needsPastaConfirmation && confirmation && confirmation.action !== 'start') {
-    return reply({ ...progress, pendingPastaSeconds: confirmation.seconds }, confirmation.message);
+    return reply(recipe, { ...progress, pendingPastaSeconds: confirmation.seconds }, confirmation.message);
   }
 
   const intent = confirmation
     ? { action: 'update', completed: ['addPasta'], pending: [], durationSeconds: confirmation.seconds }
     : await interpret(text, progress);
-  if (intent.action === 'repeat') return reply(progress);
+  if (intent.action === 'repeat') return reply(recipe, progress);
   if (intent.action === 'clarify'
       || intent.completed.some(id => intent.pending.includes(id))) {
-    return reply(progress, `状況をもう一度教えてください。いまの案内は「${guides.get(progress.currentStep)}」です。`);
+    return reply(recipe, progress, `状況をもう一度教えてください。いまの案内は「${guideFor(recipe, progress.currentStep)}」です。`);
   }
 
   for (const id of intent.completed) completed.add(id);
@@ -145,7 +148,7 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
 
   let timerEndsAt = progress.timerEndsAt;
   let timer = null;
-  const pastaIsCooking = completed.has('addPasta') && !completed.has('drain');
+  const pastaIsCooking = completed.has('addPasta') && !completed.has(recipe.finishBoiling);
   if (!pastaIsCooking && timerEndsAt !== null) {
     timer = { action: 'cancel' };
     timerEndsAt = null;
@@ -156,12 +159,13 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
     timer = { action: 'start', durationSeconds, endsAt: timerEndsAt };
   }
 
-  const currentStep = nextStep(completed, timerEndsAt, clock());
-  return reply({
+  const currentStep = nextStep(recipe, completed, timerEndsAt, clock());
+  return reply(recipe, {
     ...(progress.awaitingExtraCookTime && pastaIsCooking && timerExpired && { awaitingExtraCookTime: true }),
     ...(currentStep === 'addPasta' && progress.pendingPastaSeconds !== undefined
       && { pendingPastaSeconds: progress.pendingPastaSeconds }),
-    completed: steps.filter(({ id }) => completed.has(id)).map(({ id }) => id),
+    recipeId: recipe.id,
+    completed: recipe.steps.filter(({ id }) => completed.has(id)).map(({ id }) => id),
     currentStep,
     timerEndsAt,
   }, undefined, timer);

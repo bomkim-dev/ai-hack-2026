@@ -25,6 +25,7 @@ const publicFiles = new Map([
   ['/assets/bacon-onion-pasta.jpg', ['assets/bacon-onion-pasta.jpg', 'image/jpeg']],
   ['/cooking-api.js', ['cooking-api.js', 'text/javascript']],
   ['/cooking-logic.js', ['cooking-logic.js', 'text/javascript']],
+  ['/recipes.js', ['recipes.js', 'text/javascript']],
   ['/cooking-help.js', ['cooking-help.js', 'text/javascript']],
   ['/conversation.js', ['conversation.js', 'text/javascript']],
   ['/voice-capture.js', ['voice-capture.js', 'text/javascript']],
@@ -115,7 +116,8 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET') {
-      sendJson(response, 200, startCooking());
+      const recipeId = new URL(request.url, 'http://localhost').searchParams.get('recipe') ?? undefined;
+      sendJson(response, 200, startCooking(recipeId));
       return;
     }
     if (request.method !== 'POST') {
