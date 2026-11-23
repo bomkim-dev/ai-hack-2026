@@ -27,6 +27,7 @@ const publicFiles = new Map([
   ['/conversation.js', ['conversation.js', 'text/javascript']],
   ['/voice-capture.js', ['voice-capture.js', 'text/javascript']],
   ['/demo-logic.js', ['demo-logic.js', 'text/javascript']],
+  ['/pasta-confirmation.js', ['pasta-confirmation.js', 'text/javascript']],
   ['/pantry.html', ['pantry.html', 'text/html']],
   ['/pantry.js', ['pantry.js', 'text/javascript']],
   ['/pantry-data.js', ['pantry-data.js', 'text/javascript']],

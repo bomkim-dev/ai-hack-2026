@@ -49,6 +49,56 @@ test('the demo names the ingredient and how to prepare it', () => {
   assert.match(tuna.message, /玉ねぎを薄切り.*ツナ缶を開けて汁気を切り/);
 });
 
+test('a duration alone waits for confirmation and does not start the timer', async () => {
+  const ready = await turn('お湯は沸いた。玉ねぎも切った', undefined, update(['boilWater', 'cutOnion']));
+  const localTurn = (utterance, progress) => handleCookingTurn(
+    { utterance, progress }, () => assert.fail('These follow-ups do not need Gemini'), () => demoTime,
+  );
+  const ask = await localTurn('Enter ７分.', ready.progress);
+  assert.equal(ask.guidance, '7分ですね。パスタはもう入れましたか？');
+  assert.equal(ask.progress.pendingPastaSeconds, 420);
+  assert.equal(ask.timer, null);
+  assert.deepEqual(ask.progress.completed, ready.progress.completed);
+
+  const wait = await localTurn('まだ入れてない', ask.progress);
+  assert.equal(wait.timer, null);
+  assert.equal(wait.progress.pendingPastaSeconds, 420);
+
+  const started = await localTurn('入れたよ。', wait.progress);
+  assert.equal(started.timer.durationSeconds, 420);
+  assert.equal(started.progress.pendingPastaSeconds, undefined);
+  assert.equal(started.progress.currentStep, 'cutBacon');
+});
+
+test('only the missing duration is requested when pasta has already been added', async () => {
+  const started = await turn('パスタを入れた', undefined, update(['addPasta']));
+  assert.equal(started.progress.currentStep, 'askDuration');
+  const duration = await handleCookingTurn(
+    { utterance: '七分', progress: started.progress },
+    () => assert.fail('A standalone duration does not need Gemini'),
+    () => demoTime,
+  );
+  assert.equal(duration.timer.durationSeconds, 420);
+
+  const boiled = advanceDemo('お湯は沸いた', startDemo({ method: 'standard', protein: 'bacon' }).state);
+  const missing = advanceDemo('入れたよ', boiled.state);
+  assert.match(missing.message, /茹で時間を教えて/);
+  assert.equal(advanceDemo('もう一回', missing.state).message, missing.message);
+  assert.equal(advanceDemo('七分', missing.state).timerSeconds, 420);
+});
+
+test('the demo confirms an ambiguous duration without timers or extra turns', () => {
+  const boiled = advanceDemo('お湯は沸いた', startDemo({ method: 'standard', protein: 'bacon' }).state);
+  const ask = advanceDemo('Enter 7分.', boiled.state);
+  assert.match(ask.message, /パスタはもう入れましたか/);
+  assert.equal(ask.timerSeconds, undefined);
+  const wait = advanceDemo('まだ', ask.state);
+  assert.equal(wait.timerSeconds, undefined);
+  const confirmed = advanceDemo('入れたよ', wait.state);
+  assert.equal(confirmed.timerSeconds, 420);
+  assert.match(confirmed.message, /ベーコンを1cm幅/);
+});
+
 test('an elapsed timer guides the user to drain the pasta and the recipe can finish', async () => {
   const prepared = await turn('お湯を沸かして具材も炒めた。パスタを入れた。７分', undefined,
     update(['boilWater', 'cutOnion', 'cutBacon', 'saute', 'addPasta'], [], 420));
