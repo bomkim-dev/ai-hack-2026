@@ -20,7 +20,6 @@ main { max-width: 68rem; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3r
 h1 { margin: 1.5rem 0; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: clamp(2.4rem, 7vw, 4.3rem); line-height: 1.14; }
 .workspace { display: grid; grid-template-columns: minmax(0, 2fr) minmax(14rem, 1fr); gap: 1rem; align-items: start; }
 .panel { padding: clamp(1rem, 3vw, 1.65rem); border: 1px solid var(--line); border-radius: 1rem; background: #fffdf7; }
-.sidebar { display: grid; gap: 1rem; }
 h2 { margin: 0; font-size: 1rem; color: var(--muted); }
 .instruction { min-height: 4.8rem; margin: 1.45rem 0; font-size: clamp(1.3rem, 4vw, 1.9rem); line-height: 1.6; overflow-wrap: anywhere; }
 button, input { font: inherit; border-radius: .65rem; min-height: 3rem; }
@@ -33,9 +32,25 @@ label { display: block; font-weight: 700; }
 .input-row, .actions { display: flex; gap: .55rem; }
 .actions { margin-top: .8rem; flex-wrap: wrap; }
 input { padding: .55rem .7rem; min-width: 0; flex: 1; border: 1px solid var(--line); color: var(--ink); background: white; }
-.timer { background: #e8eddd; }
-#remaining { display: block; margin: .25rem 0; color: var(--green); font-size: 3.45rem; font-weight: 750; font-variant-numeric: tabular-nums; }
-#timer-status { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.55; }
+.timer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: .2rem .8rem;
+  margin-bottom: 1rem;
+  padding: .8rem 1rem;
+  border-radius: .75rem;
+  background: #e8eddd;
+}
+#timer-heading { grid-column: 1; grid-row: 1; margin: 0; font-size: .95rem; }
+#remaining {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  color: var(--green);
+  font: 650 clamp(1.65rem, 6vw, 2.5rem)/1.2 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+#timer-status { grid-column: 1; grid-row: 2; margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.55; }
 .ingredients h2 span { float: right; font-weight: 400; }
 dl { margin: .6rem 0 0; }
 dl div { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
@@ -43,8 +58,12 @@ dl div:last-child { border-bottom: 0; }
 dd { margin: 0; white-space: nowrap; }
 
 @media (max-width: 42rem) {
+  main { padding-top: 1rem; }
+  h1 { margin-block: 1rem; font-family: inherit; font-size: clamp(1.65rem, 6vw, 2.25rem); line-height: 1.28; }
   .workspace { grid-template-columns: minmax(0, 1fr); }
-  .instruction { min-height: auto; }
+  .instruction { min-height: auto; margin-block: .8rem 1rem; }
+  #start { width: 100%; }
+  #utterance { font-size: max(1rem, 16px); }
 }
 
 #recipe-choice { display: flex; flex-wrap: wrap; gap: .7rem; }

@@ -176,6 +176,7 @@ function setControls(started) {
   start.hidden = started;
   get('recipe-choice').hidden = started || Boolean(selection);
   get('demo-timer-option').hidden = started || !demo;
+  get('boil-timer').hidden = !started;
   form.hidden = !started;
 }
 

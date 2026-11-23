@@ -20,6 +20,11 @@
       <section class="guide panel" aria-labelledby="guide-heading">
         <h2 id="guide-heading">調理ガイド</h2>
         <p id="instruction" class="instruction" role="status">材料がそろったら、料理を始めましょう。</p>
+        <section id="boil-timer" class="timer" aria-labelledby="timer-heading" hidden>
+          <h3 id="timer-heading">茹で時間</h3>
+          <output id="remaining" role="timer" aria-live="off">--:--</output>
+          <p id="timer-status" role="status">パスタを入れたら、茹で時間を伝えてください。</p>
+        </section>
         <div id="recipe-choice">
           <label>具材 <select id="protein"><option value="bacon">ベーコン</option><option value="tuna">ツナ缶</option></select></label>
           <label>作り方 <select id="method"><option value="standard">鍋とフライパン</option><option value="onePan">深めのフライパンだけ</option></select></label>
@@ -36,7 +41,7 @@
           <label for="utterance">今の調理状況</label>
           <p id="input-help">「録音する」を押して話し、録音を止めると送信されます。文字でも入力できます。</p>
           <div class="input-row">
-            <input id="utterance" autocomplete="off" maxlength="500" aria-describedby="input-help" placeholder="例：お湯は沸いた。玉ねぎは切った。">
+            <input id="utterance" autocomplete="off" enterkeyhint="send" maxlength="500" aria-describedby="input-help" placeholder="例：お湯は沸いた。玉ねぎは切った。">
             <button type="submit">送信</button>
           </div>
           <div class="actions">
@@ -48,22 +53,15 @@
         </form>
       </section>
 
-      <aside class="sidebar">
-        <section class="timer panel" aria-labelledby="timer-heading">
-          <h2 id="timer-heading">茹で時間</h2>
-          <output id="remaining" role="timer" aria-live="off">--:--</output>
-          <p id="timer-status" role="status">パスタを入れたら、茹で時間を伝えてください。</p>
-        </section>
-        <section class="ingredients panel" aria-labelledby="ingredients-heading">
-          <h2 id="ingredients-heading">材料 <span>1人分</span></h2>
-          <dl id="recipe-ingredients">
-            <div><dt>パスタ</dt><dd>100 g</dd></div>
-            <div><dt>ベーコン</dt><dd>40 g</dd></div>
-            <div><dt>玉ねぎ</dt><dd>1/4個</dd></div>
-            <div><dt>オリーブオイル</dt><dd>小さじ2</dd></div>
-            <div><dt>塩・こしょう</dt><dd>適量</dd></div>
-          </dl>
-        </section>
+      <aside class="ingredients panel" aria-labelledby="ingredients-heading">
+        <h2 id="ingredients-heading">材料 <span>1人分</span></h2>
+        <dl id="recipe-ingredients">
+          <div><dt>パスタ</dt><dd>100 g</dd></div>
+          <div><dt>ベーコン</dt><dd>40 g</dd></div>
+          <div><dt>玉ねぎ</dt><dd>1/4個</dd></div>
+          <div><dt>オリーブオイル</dt><dd>小さじ2</dd></div>
+          <div><dt>塩・こしょう</dt><dd>適量</dd></div>
+        </dl>
       </aside>
     </div>
   </main>
