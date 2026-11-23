@@ -1,3 +1,5 @@
+[hidden] { display: none !important; }
+
 :root {
   color-scheme: light;
   font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;

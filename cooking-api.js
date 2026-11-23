@@ -1,20 +1,28 @@
-async function post(path, context, signal) {
-  const result = await fetch(path, {
+async function request(path, { signal, ...options } = {}) {
+  const timeout = AbortSignal.timeout(25_000);
+  const response = await fetch(path, { ...options, signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result) {
+    throw new Error(result?.error || '調理サーバーに接続できませんでした。');
+  }
+  return result;
+}
+
+export function startSession(signal) {
+  return request('/api/cooking', { signal });
+}
+
+export function sendTurn(state, data, signal) {
+  return request('/api/cooking', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(context),
-    signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]),
+    body: JSON.stringify({ ...data, progress: state }),
+    signal,
   });
-  if (!result.ok) throw new Error(`Cooking API HTTP ${result.status}`);
-  return result.json();
 }
 
-export function requestRecipe(context, signal) {
-  return post('/api/recipe', context, signal);
-}
-
-export async function requestCookingReply(context, signal) {
-  const { reply } = await post('/api/cooking-chat', context, signal);
-  if (typeof reply !== 'string' || !reply.trim()) throw new Error('Invalid cooking reply');
-  return reply;
+export async function transcribe(audio, signal) {
+  const { text } = await request('/api/transcribe', { method: 'POST', body: audio, signal });
+  if (typeof text !== 'string' || !text.trim()) throw new Error('録音を文字起こしできませんでした。');
+  return text;
 }

@@ -1,30 +1,27 @@
-# Pantry UI integration
+# 食材・道具画面と調理 API の接続
 
-This add-on is for role A. It can be served by any static HTTP server alongside the existing cooking UI. It has no dependencies, account setup, or API key.
+食材・道具画面は確定した食材と道具を調理画面へ渡します。盛り付け後は「使った食材を確認する」から、実際の使用量を入力して在庫を更新できます。
 
-## Cooking UI boundary
+通常モードの調理 API はベーコンと玉ねぎのパスタを鍋とフライパンで作る手順に対応します。ツナやワンパンの選択は画面確認用デモに引き継げます。画面確認用デモは従来の固定応答を使います。
 
-The integrated A preview includes the route and consumption links. It reads the optional one-time selection from `pantry-data.js`, passes confirmed ingredients and tools to the local server, and opens the consumption screen only after that cook completes.
+## A と B の受け渡し
 
-B provides `cooking-logic.js` as a browser ES module. The UI accepts either immediate return values or promises.
+`cooking-logic.js` は画面と調理 API の間をつなぐブラウザ用モジュールです。画面は返された `state` を次の呼び出しに渡します。
 
-| Export | Input | Return |
+| Export | 入力 | 戻り値 |
 | --- | --- | --- |
-| `startCooking` | `{ protein, method, ingredients, tools, recipe }`. The recipe may be null if the server was unavailable. | `{ state, message, stepId?, recipe? }` |
-| `handleUtterance` | Confirmed Japanese text and the last opaque state. | `{ state, message, stepId?, timerSeconds?, done? }`, or `{ needsChat: true }` |
+| `startCooking` | 調理の選択と任意の `signal` | `{ state, message, timer, done }` |
+| `handleUtterance` | 文字起こしまたは手入力の発話、前回の `state`、任意の `signal` | 同上 |
+| `handleTimerElapsed` | 最新の `state`、任意の `signal` | 同上 |
 
-`timerSeconds` is an integer between 1 and 3600. Only the UI starts the timer. Setting `done` after plating triggers a consumption check for pantry-assisted cooks. When the API is unavailable and `startCooking` selects the built-in recipe, B returns that recipe so A can still send it with a later chat request. The chat endpoint should also accept `recipe: null` and derive the built-in recipe from the route if needed. IDs and units in a generated recipe must match the selection. Pasta and bacon use grams, onion uses units of one onion, and tuna uses cans.
+`message` は画面表示と日本語読み上げに使います。`timer` は開始時に `{ action: 'start', durationSeconds, endsAt }`、解除時に `{ action: 'cancel' }`、変更がない場合は `null` です。`endsAt` は UNIX 時刻のミリ秒です。`done` が真になると盛り付けが完了です。
 
-The A-side API contract is `POST /api/recipe` with `{ protein, method, ingredients, tools }` and result `{ source, recipe }`. The recipe contains `title`, `ingredients` (`{ id, amount }`), and `steps`. `POST /api/cooking-chat` also receives `recipe`, `stepId`, `question`, and `remainingSeconds`, and returns `{ reply }`. The countdown stays independent of the request, and replies to a session that has ended are discarded. Keep the key on B's server.
+- `POST /api/transcribe` はブラウザの録音を受け取り、Aqua Voice の文字起こしを `{ text }` で返します。
+- `GET /api/cooking` は初期案内と進捗を返します。`POST /api/cooking` は `{ utterance, progress }` または `{ event: 'timerElapsed', progress }` を受け取り、`{ progress, guidance, timer, finished }` を返します。
+- Gemini は発話を判定し、次の案内は固定レシピの進捗に従って調理 API が選びます。
 
-## Verify the UI
+## 画面確認用デモでの在庫の確認
 
-- Choose quantity tracking for tuna and set it to two cans. Leave onion in availability mode.
-- Set pasta and onion to present, bacon and the pot to absent, and a deep frying pan to present. The recommendation is 「ツナ缶と玉ねぎのワンパンパスタ」.
-- Add bacon to the shopping list and confirm a purchase. Check that the chosen stock update survived a reload.
-- Save a date, then update the date to yesterday or three days from today. Check both expiry messages.
-- Start cooking with the selection and check that the cooking UI receives its summary. On completion, confirm one can used and that onion remains. Confirming the same cook a second time leaves the quantities alone.
-
-## Connection check
-
-Chrome passed the client integration with a simulated B module and API. The UI sent the selected route to the recipe endpoint, kept counting down while a cooking reply was delayed, recovered from an unavailable endpoint, and discarded stale replies after reset. Live OpenAI calls, desktop Aqua Voice insertion, and audible Japanese playback still need to be checked on the demo Mac with B's local server.
+1. `/?demo=1` の「食材・道具を確認する」からツナを２缶、パスタと玉ねぎを「ある」にします。ベーコンと鍋を「ない」、深めのフライパンを「ある」にします。
+2. ツナ缶と玉ねぎのワンパンパスタの提案から調理を開始し、画面の案内に沿って盛り付けまで進めます。
+3. 完成後にツナを１缶使ったと入力し、残量が１缶になることを確認します。

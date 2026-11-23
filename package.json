@@ -1,0 +1,12 @@
+{
+  "name": "ai-hack-2026",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  }
+}
