@@ -22,6 +22,7 @@ const publicFiles = new Map([
   ['/index.html', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/styles.css', ['styles.css', 'text/css']],
+  ['/assets/bacon-onion-pasta.jpg', ['assets/bacon-onion-pasta.jpg', 'image/jpeg']],
   ['/cooking-api.js', ['cooking-api.js', 'text/javascript']],
   ['/cooking-logic.js', ['cooking-logic.js', 'text/javascript']],
   ['/conversation.js', ['conversation.js', 'text/javascript']],
@@ -78,7 +79,8 @@ const server = createServer(async (request, response) => {
     if (asset && request.method === 'GET') {
       const [file, type] = asset;
       const content = await readFile(new URL(`../${file}`, import.meta.url));
-      response.writeHead(200, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' });
+      const contentType = type.startsWith('image/') ? type : `${type}; charset=utf-8`;
+      response.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store' });
       response.end(content);
       return;
     }

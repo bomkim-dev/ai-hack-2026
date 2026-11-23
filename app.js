@@ -87,8 +87,18 @@ function appendMessage(sender, text) {
   if (sender !== 'notice') {
     const author = document.createElement('span');
     author.className = 'message-author';
-    author.textContent = sender === 'you' ? 'あなた' : 'ガイド';
+    author.textContent = sender === 'you' ? 'あなた' : '現在の案内';
     message.append(author);
+  }
+  if (sender === 'guide') {
+    const previous = messages.querySelector('.message--current');
+    if (previous) {
+      previous.classList.remove('message--current');
+      previous.removeAttribute('aria-current');
+      previous.querySelector('.message-author').textContent = 'ガイド';
+    }
+    message.classList.add('message--current');
+    message.setAttribute('aria-current', 'true');
   }
   const bubble = document.createElement('p');
   bubble.className = 'message-bubble';
@@ -214,6 +224,7 @@ function renderRecipe(title, items) {
 function updateChoice() {
   const { protein, method, ingredients, tools } = currentContext();
   renderRecipe(`${foods[protein].name}と玉ねぎの${method === 'onePan' ? 'ワンパン' : ''}パスタ`, ingredients);
+  get('recipe-photo').hidden = !form.hidden || protein !== 'bacon';
   get('gear-hint').textContent = `使う道具：${tools.map(id => equipment[id].name).join('・')}。包丁・まな板と火元も確認してください。`;
 }
 
@@ -224,6 +235,8 @@ function setControls(started) {
   instruction.hidden = started;
   timer.hidden = !started;
   conversationLog.hidden = !started;
+  get('recipe-description').hidden = started;
+  get('recipe-photo').hidden = started || currentContext().protein !== 'bacon';
   form.hidden = !started;
   if (started) scrollToLatest();
 }

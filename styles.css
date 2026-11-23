@@ -12,6 +12,8 @@
   --paper: #fff;
   --line: #dce2d8;
   --focus: #9d5727;
+  --cooking-action: #a44126;
+  --cooking-action-hover: #87331e;
   --warning: #713b16;
   --warning-surface: #fbecdf;
   color: var(--ink);
@@ -112,6 +114,8 @@ input:not([type=checkbox]), select {
 #gear-hint, #recipe-source { margin: .55rem 0; color: var(--muted); font-size: .85rem; }
 #recipe-source:empty, #voice-status:empty, #conversation-status:empty { display: none; }
 #start-actions { display: flex; gap: .7rem; flex-wrap: wrap; align-items: center; margin: .85rem 0 .55rem; }
+#start { border-color: var(--cooking-action); background: var(--cooking-action); }
+#start:hover:not(:disabled) { background: var(--cooking-action-hover); }
 #start-actions a, #completion a { color: var(--green); text-underline-offset: .18em; }
 #start-actions a { display: inline-flex; align-items: center; min-height: 2.75rem; }
 #demo-timer-option { margin-top: .65rem; }
@@ -255,4 +259,42 @@ dd { margin: 0; color: var(--muted); white-space: nowrap; }
   #utterance { font-size: 1rem; }
   .conversation-log { padding: .69rem; }
   .message { max-width: 91%; }
+}
+
+.recipe-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 1.1rem;
+  margin-block: 1rem;
+  align-items: center;
+}
+.recipe-heading h1 { margin: 0; }
+.recipe-heading:has(.recipe-photo:not([hidden])) {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  padding-inline-start: clamp(1.05rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  background: #f9fbf4;
+}
+.recipe-heading:has(.recipe-photo:not([hidden])) .recipe-heading-copy { padding: 1.15rem 0; }
+#recipe-description { max-width: 31ch; margin: .55rem 0 0; color: var(--muted); line-height: 1.65; }
+.recipe-photo {
+  display: block;
+  width: 100%;
+  height: clamp(9.5rem, 21vw, 13rem);
+  border-radius: 0 1rem 1rem 0;
+  object-fit: cover;
+  object-position: 63% 52%;
+}
+.message--current .message-author { color: var(--green); font-weight: 740; }
+.message--current .message-bubble {
+  border-color: #a4b9a4;
+  border-inline-start: .2rem solid var(--green);
+  background: #fcfff9;
+}
+
+@media (max-width: 42rem) {
+  .recipe-heading:has(.recipe-photo:not([hidden])) { grid-template-columns: minmax(0, 1fr); padding-inline-start: 0; }
+  .recipe-heading:has(.recipe-photo:not([hidden])) .recipe-heading-copy { padding: .95rem 1rem; }
+  .recipe-photo { grid-row: 1; height: 9.25rem; border-radius: 1rem 1rem 0 0; }
 }
