@@ -7,6 +7,7 @@ const start = get('start');
 const form = get('voice-form');
 const input = get('utterance');
 const instruction = get('instruction');
+const timer = get('boil-timer');
 const timerStatus = get('timer-status');
 const remaining = get('remaining');
 const record = get('record');
@@ -91,6 +92,7 @@ function updateTimer() {
   }
   if (seconds === 0) {
     stopTimer();
+    timer.classList.add('is-expired');
     timerStatus.textContent = '時間になりました。パスタの茹で具合を確認してください。';
     timerDue = true;
     announceTimer();
@@ -133,6 +135,7 @@ function announceTimer() {
 
 function startTimer(seconds, endsAt) {
   if (deadline !== undefined || !Number.isSafeInteger(seconds) || seconds < 1) return;
+  timer.classList.remove('is-expired');
   const accelerated = demo && get('demo-timer').checked;
   deadline = endsAt ?? Date.now() + (accelerated ? Math.min(seconds, 10) : seconds) * 1000;
   timerStatus.textContent = accelerated ? 'デモ用タイマー（最長10秒）' : '計測中';
@@ -176,7 +179,7 @@ function setControls(started) {
   start.hidden = started;
   get('recipe-choice').hidden = started || Boolean(selection);
   get('demo-timer-option').hidden = started || !demo;
-  get('boil-timer').hidden = !started;
+  timer.hidden = !started;
   form.hidden = !started;
 }
 
@@ -188,6 +191,7 @@ function applyResult(result) {
   if (result.timer?.action === 'cancel' && (deadline !== undefined || timerDue)) {
     stopTimer();
     timerDue = false;
+    timer.classList.remove('is-expired');
     remaining.textContent = '--:--';
     timerStatus.textContent = '茹で時間の計測を終了しました。';
   }
@@ -310,6 +314,7 @@ get('reset').addEventListener('click', () => {
   input.value = '';
   voiceStatus.textContent = '';
   remaining.textContent = '--:--';
+  timer.classList.remove('is-expired');
   timerStatus.textContent = timerLead;
   instruction.textContent = lead;
   spokenInstruction = lead;
