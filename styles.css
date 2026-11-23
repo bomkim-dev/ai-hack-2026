@@ -33,6 +33,9 @@ label { display: block; font-weight: 700; }
 .actions { margin-top: .8rem; flex-wrap: wrap; }
 input { padding: .55rem .7rem; min-width: 0; flex: 1; border: 1px solid var(--line); color: var(--ink); background: white; }
 .timer {
+  position: sticky;
+  inset-block-start: .5rem;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
@@ -76,3 +79,49 @@ dd { margin: 0; white-space: nowrap; }
 #start-actions { display: flex; gap: .85rem; flex-wrap: wrap; align-items: center; }
 #start-actions a, #completion a { color: #35523a; }
 #demo-timer-option { display: block; margin-top: .65rem; }
+
+.conversation-log {
+  height: clamp(12rem, 37vh, 26rem);
+  height: clamp(12rem, 37dvh, 26rem);
+  margin-block: .8rem 1rem;
+  padding: .85rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: .85rem;
+  background: #f5f3e9;
+}
+.conversation-log:focus-visible { outline: 3px solid #a85b26; outline-offset: 2px; }
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: .9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.message { align-self: start; min-width: 0; max-width: 87%; }
+.message--you { align-self: end; text-align: right; }
+.message-author, .message-error { display: block; margin: 0 .2rem .2rem; font-size: .78rem; color: var(--muted); }
+.message-bubble {
+  margin: 0;
+  padding: .72rem .9rem;
+  border-radius: .25rem 1rem 1rem 1rem;
+  background: #fffdf7;
+  font-size: clamp(1rem, 2.15vw, 1.16rem);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.message--you .message-bubble { border-radius: 1rem .25rem 1rem 1rem; background: #dce8cf; text-align: left; }
+.message--notice { align-self: center; }
+.message--notice .message-bubble {
+  padding: .28rem .75rem;
+  border-radius: 1rem;
+  background: #f4e5d4;
+  color: #713b16;
+  text-align: center;
+  font-size: .82rem;
+}
+.message-error { margin-top: .23rem; color: #713b16; }
+#voice-status:empty, #conversation-status:empty { display: none; }
+#voice-status, #conversation-status { margin: .55rem 0 0; }

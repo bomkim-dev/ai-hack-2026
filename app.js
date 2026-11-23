@@ -8,6 +8,8 @@ const start = get('start');
 const form = get('voice-form');
 const input = get('utterance');
 const instruction = get('instruction');
+const conversationLog = get('conversation-log');
+const messages = get('messages');
 const timer = get('boil-timer');
 const timerStatus = get('timer-status');
 const remaining = get('remaining');
@@ -75,8 +77,30 @@ function speak(message, after) {
   speechSynthesis.speak(utterance);
 }
 
+function scrollToLatest() {
+  conversationLog.scrollTop = conversationLog.scrollHeight;
+}
+
+function appendMessage(sender, text) {
+  const message = document.createElement('li');
+  message.className = `message message--${sender}`;
+  if (sender !== 'notice') {
+    const author = document.createElement('span');
+    author.className = 'message-author';
+    author.textContent = sender === 'you' ? 'あなた' : 'ガイド';
+    message.append(author);
+  }
+  const bubble = document.createElement('p');
+  bubble.className = 'message-bubble';
+  bubble.textContent = text;
+  message.append(bubble);
+  messages.append(message);
+  scrollToLatest();
+  return message;
+}
+
 function showInstruction(message) {
-  instruction.textContent = message;
+  appendMessage('guide', message);
   spokenInstruction = message;
   if (!timerDue) speakGuidance(message);
 }
@@ -110,6 +134,7 @@ function updateTimer() {
     timer.classList.add('is-expired');
     timerStatus.textContent = '時間になりました。パスタの茹で具合を確認してください。';
     timerDue = true;
+    appendMessage('notice', '茹で時間が終了しました。');
     announceTimer();
   }
 }
@@ -137,7 +162,10 @@ function announceTimer() {
       const result = await logic.handleTimerElapsed(state, signal);
       signal.throwIfAborted();
       state = result.state;
-      if (result.message) instruction.textContent = spokenInstruction = result.message;
+      if (result.message) {
+        spokenInstruction = result.message;
+        appendMessage('guide', result.message);
+      }
       speakAlert('時間になりました。' + (result.message || spokenInstruction));
     } catch (error) {
       if (signal.aborted) return;
@@ -193,8 +221,11 @@ function setControls(started) {
   start.hidden = started;
   get('recipe-choice').hidden = started || Boolean(selection);
   get('demo-timer-option').hidden = started || !demo;
+  instruction.hidden = started;
   timer.hidden = !started;
+  conversationLog.hidden = !started;
   form.hidden = !started;
+  if (started) scrollToLatest();
 }
 
 function applyResult(result) {
@@ -285,14 +316,28 @@ start.addEventListener('click', () => run(async signal => {
 }));
 
 async function submitUtterance(text, signal) {
+  const message = appendMessage('you', text);
   voiceStatus.textContent = '次の手順を確認中…';
-  const result = await logic.handleUtterance(text, state, signal);
-  signal.throwIfAborted();
-  voiceStatus.textContent = '';
-  if (result?.needsChat) {
-    showInstruction('画面確認用デモです。現在の手順を続けてください。');
-  } else {
-    applyResult(result);
+  try {
+    const result = await logic.handleUtterance(text, state, signal);
+    signal.throwIfAborted();
+    voiceStatus.textContent = '';
+    if (result?.needsChat) {
+      showInstruction('画面確認用デモです。現在の手順を続けてください。');
+    } else {
+      applyResult(result);
+    }
+  } catch (error) {
+    if (signal.aborted) {
+      message.remove();
+    } else {
+      const status = document.createElement('span');
+      status.className = 'message-error';
+      status.textContent = '送信できませんでした';
+      message.append(status);
+      scrollToLatest();
+    }
+    throw error;
   }
 }
 
@@ -367,7 +412,7 @@ talk.addEventListener('click', async () => {
 });
 
 get('repeat').addEventListener('click', () => {
-  if (!stopRecording) showInstruction(spokenInstruction);
+  if (!stopRecording && !timerDue) speakGuidance(spokenInstruction);
 });
 get('reset').addEventListener('click', () => {
   stopConversation();
@@ -389,6 +434,7 @@ get('reset').addEventListener('click', () => {
   timer.classList.remove('is-expired');
   timerStatus.textContent = timerLead;
   instruction.textContent = lead;
+  messages.replaceChildren();
   spokenInstruction = lead;
   get('recipe-source').textContent = '';
   get('completion').hidden = true;
