@@ -1,4 +1,4 @@
-import { confirmPastaTiming } from './pasta-confirmation.js';
+import { confirmPastaTiming, interpretPastaExtension } from './pasta-confirmation.js';
 
 // Local UI fixture. The real cooking module belongs to role B.
 const standard = prepare => [
@@ -34,14 +34,31 @@ export function startCooking(context) {
   return turn({ steps, index: 0 });
 }
 
+export function handleTimerElapsed(state) {
+  return state.pastaTiming === 'running' ? { ...state, pastaTiming: 'expired' } : state;
+}
+
 export function handleUtterance(text, state) {
   const [id, , matches] = state.steps[state.index];
   const phrase = text.normalize('NFKC');
+  const extension = interpretPastaExtension(phrase, {
+    timing: state.pastaTiming,
+    awaitingDuration: state.awaitingExtraCookTime,
+    maxSeconds: 3600,
+  });
+  if (extension) {
+    if (extension.seconds) {
+      const next = { ...state, pastaTiming: 'running', awaitingExtraCookTime: false };
+      return { ...turn(next), message: extension.message, timerSeconds: extension.seconds };
+    }
+    const next = extension.awaitingDuration ? { ...state, awaitingExtraCookTime: true } : state;
+    return { ...turn(next), message: extension.message };
+  }
   if (id === 'add') {
     const confirmation = confirmPastaTiming(phrase, state.pendingPastaSeconds, 3600);
     if (confirmation) {
       if (confirmation.action === 'start' || (state.pastaAdded && confirmation.action === 'ask')) {
-        return { ...turn({ steps: state.steps, index: state.index + 1 }), timerSeconds: confirmation.seconds };
+        return { ...turn({ steps: state.steps, index: state.index + 1, pastaTiming: 'running' }), timerSeconds: confirmation.seconds };
       }
       return { ...turn({ ...state, pendingPastaSeconds: confirmation.seconds }), message: confirmation.message };
     }
@@ -51,13 +68,17 @@ export function handleUtterance(text, state) {
   if (!matches.test(phrase) && !/^(?:できた|終わった)[。!]?$/u.test(phrase)) {
     return { ...turn(state), message: '今の手順ができたら、「できた」と伝えてください。' };
   }
-  const next = turn({ steps: state.steps, index: state.index + 1 });
-  if (id !== 'add') return next;
+  const index = state.index + 1;
+  if (id === 'drain' || (id === 'season' && state.pastaTiming !== 'drained')) {
+    const next = { ...state, index, pastaTiming: 'drained', awaitingExtraCookTime: false };
+    return { ...turn(next), timer: { action: 'cancel' } };
+  }
+  if (id !== 'add') return turn({ ...state, index });
   const time = phrase.match(/(\d+)\s*(分|秒)/u);
   const timerSeconds = time ? Number(time[1]) * (time[2] === '分' ? 60 : 1)
     : /七分/u.test(phrase) ? 420 : state.pendingPastaSeconds;
   if (!timerSeconds || timerSeconds > 3600) {
     return turn({ ...state, pastaAdded: true });
   }
-  return { ...next, timerSeconds };
+  return { ...turn({ steps: state.steps, index, pastaTiming: 'running' }), timerSeconds };
 }

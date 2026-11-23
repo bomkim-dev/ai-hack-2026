@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { handleCookingTurn, startCooking } from '../server/cooking.js';
-import { startCooking as startDemo, handleUtterance as advanceDemo } from '../demo-logic.js';
+import {
+  startCooking as startDemo, handleUtterance as advanceDemo, handleTimerElapsed as expireDemoTimer,
+} from '../demo-logic.js';
 import { GeminiError, interpretWithGemini } from '../server/gemini.js';
 
 const demoTime = 1_800_000_000_000;
@@ -97,6 +99,61 @@ test('the demo confirms an ambiguous duration without timers or extra turns', ()
   const confirmed = advanceDemo('入れたよ', wait.state);
   assert.equal(confirmed.timerSeconds, 420);
   assert.match(confirmed.message, /ベーコンを1cm幅/);
+});
+
+test('extra cooking time requires an expired timer and stops being available after draining', async () => {
+  const cooking = await turn('パスタを入れた。7分', undefined,
+    update(['boilWater', 'cutOnion', 'addPasta', 'cutBacon', 'saute'], [], 420));
+  const localTurn = (utterance, progress, now) => handleCookingTurn(
+    { utterance, progress }, () => assert.fail('Timer follow-ups do not need Gemini'), () => now,
+  );
+  const elapsedAt = demoTime + 420_000;
+  const tooSoon = await localTurn('あと1分茹でる', cooking.progress, elapsedAt - 1000);
+  assert.equal(tooSoon.timer, null);
+  assert.deepEqual(tooSoon.progress, cooking.progress);
+  assert.equal((await localTurn('あと1分茹でる', startCooking().progress, elapsedAt)).timer, null);
+
+  const asked = await localTurn('まだ硬い', cooking.progress, elapsedAt);
+  assert.equal(asked.guidance, 'あと何分茹でますか？');
+  assert.equal(asked.timer, null);
+  const extra = await localTurn('一分', asked.progress, elapsedAt);
+  assert.equal(extra.progress.awaitingExtraCookTime, undefined);
+  assert.deepEqual(extra.progress.completed, cooking.progress.completed);
+  assert.deepEqual(extra.timer, { action: 'start', durationSeconds: 60, endsAt: elapsedAt + 60_000 });
+  assert.equal(extra.guidance, 'あと1分、茹でましょう。');
+
+  const direct = await localTurn('まだ固い。あと1分茹でる。', cooking.progress, elapsedAt);
+  assert.deepEqual(direct.timer, extra.timer);
+  const duplicate = await localTurn('あと1分茹でる', extra.progress, elapsedAt + 1000);
+  assert.equal(duplicate.timer, null);
+  assert.equal(duplicate.progress.timerEndsAt, extra.progress.timerEndsAt);
+
+  const drained = await turn('湯を切った', extra.progress, update(['drain']), elapsedAt + 61_000);
+  const tooLate = await localTurn('あと1分茹でる', drained.progress, elapsedAt + 62_000);
+  assert.equal(tooLate.timer, null);
+  assert.equal(tooLate.progress.currentStep, 'season');
+});
+
+test('the demo can extend an expired timer without changing the cooking step', () => {
+  const start = startDemo({ method: 'standard', protein: 'bacon' });
+  const boiled = advanceDemo('お湯は沸いた', start.state);
+  const cooking = advanceDemo('パスタを入れた。7分', boiled.state);
+  assert.equal(advanceDemo('あと1分茹でる', cooking.state).timerSeconds, undefined);
+
+  const chopped = advanceDemo('ベーコン切った', cooking.state);
+  const fried = advanceDemo('炒めた', chopped.state);
+  const expired = expireDemoTimer(fried.state);
+  const asked = advanceDemo('まだ硬い', expired);
+  assert.equal(asked.message, 'あと何分茹でますか？');
+  assert.equal(asked.timerSeconds, undefined);
+  const extra = advanceDemo('1分', asked.state);
+  assert.equal(extra.timerSeconds, 60);
+  assert.equal(extra.stepId, 'drain');
+
+  const drained = advanceDemo('湯を切った', expireDemoTimer(extra.state));
+  const tooLate = advanceDemo('あと1分茹でる', drained.state);
+  assert.equal(tooLate.timerSeconds, undefined);
+  assert.equal(tooLate.stepId, 'season');
 });
 
 test('an elapsed timer guides the user to drain the pasta and the recipe can finish', async () => {

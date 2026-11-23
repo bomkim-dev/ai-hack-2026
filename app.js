@@ -179,6 +179,7 @@ function announceTimer() {
     });
   };
   if (demo) {
+    state = logic.handleTimerElapsed(state);
     speakAlert(timerStatus.textContent);
     return;
   }
