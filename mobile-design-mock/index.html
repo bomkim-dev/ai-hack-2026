@@ -59,10 +59,6 @@
           <output id="remaining" role="timer" aria-live="off"></output>
         </section>
         <p id="feedback" class="feedback" role="status" hidden></p>
-        <section id="conversation-reply" class="conversation-reply" aria-labelledby="reply-label" hidden>
-          <h2 id="reply-label">ミミシェフの返答</h2>
-          <p id="reply" role="status"></p>
-        </section>
         <div id="voice-dock" class="voice-dock">
           <button id="mic-button" class="mic-button" type="button" data-state="idle" aria-pressed="false" aria-label="会話モード" aria-describedby="voice-status">
             <span class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -75,9 +71,9 @@
           </div>
         </div>
         <div id="finish-dock" class="finish-dock" hidden><button id="finish" class="primary" type="button">調理前に戻る</button></div>
-        <section class="conversation-history" aria-labelledby="history-title">
+        <section id="conversation-history" class="conversation-history" aria-labelledby="history-title" hidden>
           <h2 id="history-title">会話履歴</h2>
-          <ol id="messages" class="messages" tabindex="0" aria-labelledby="history-title"></ol>
+          <ol id="messages" class="messages" tabindex="0" role="log" aria-labelledby="history-title"></ol>
         </section>
       </div>
     </section>

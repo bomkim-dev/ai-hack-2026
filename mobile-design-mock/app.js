@@ -7,14 +7,13 @@ const recipe = byId('recipe');
 const cooking = byId('cooking');
 const instruction = byId('instruction');
 const feedback = byId('feedback');
-const conversationReply = byId('conversation-reply');
-const reply = byId('reply');
 const timer = byId('timer');
 const timerLabel = byId('timer-label');
 const timerNote = byId('timer-note');
 const remaining = byId('remaining');
 const mic = byId('mic-button');
 const utterance = byId('utterance');
+const conversationHistory = byId('conversation-history');
 const messages = byId('messages');
 const typing = document.querySelector('[data-open="typing"]');
 
@@ -44,7 +43,12 @@ let conversation;
 let typedTurn;
 let history = [];
 
+function rememberMessage(role, text) {
+  history = [...history.slice(-7), { role, text: text.slice(0, 500) }];
+}
+
 function addMessage(author, text) {
+  conversationHistory.hidden = false;
   const atLatest = messages.scrollHeight - messages.clientHeight - messages.scrollTop < 24;
   const item = document.createElement('li');
   const name = document.createElement('small');
@@ -53,8 +57,7 @@ function addMessage(author, text) {
   item.append(name, text);
   messages.append(item);
   if (atLatest) messages.scrollTop = messages.scrollHeight;
-  const role = author === 'あなた' ? 'user' : 'assistant';
-  history = [...history.slice(-7), { role, text: text.slice(0, 500) }];
+  rememberMessage(author === 'あなた' ? 'user' : 'assistant', text);
 }
 
 function setFeedback(text) {
@@ -126,13 +129,13 @@ function tick() {
   timer.classList.add('expired');
   timerLabel.textContent = '茹で時間終了';
   timerNote.hidden = false;
-  addMessage('タイマー', '茹で時間が終了しました。');
+  rememberMessage('assistant', '茹で時間が終了しました。');
 }
 
 function render(result) {
   current = result;
   instruction.textContent = result.message;
-  addMessage('ミミシェフ', result.message);
+  rememberMessage('assistant', result.message);
   utterance.placeholder = result.done ? '' : '例：' + examples[result.stepId];
   byId('voice-dock').hidden = Boolean(result.done);
   byId('finish-dock').hidden = !result.done;
@@ -148,8 +151,6 @@ function presentTurn(text, { advance, timerSeconds, reply: response }) {
     if (!response) response = '袋に書いてある茹で時間を教えてください。';
     utterance.placeholder = '例：7分';
   }
-  conversationReply.hidden = !response;
-  reply.textContent = response;
   if (response) addMessage('ミミシェフ', response);
   if (!advance || result.awaitingDuration) return response;
 
@@ -203,7 +204,7 @@ byId('start').addEventListener('click', () => {
   history = [];
   utterance.value = '';
   setFeedback('');
-  conversationReply.hidden = true;
+  conversationHistory.hidden = true;
   recipe.hidden = true;
   cooking.hidden = false;
   render(startCooking());
