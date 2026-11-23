@@ -1,4 +1,4 @@
-:root { font-family: system-ui, "Hiragino Sans", sans-serif; color: #2a3026; background: #f6f2e8; line-height: 1.65; }
+:root { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", Meiryo, system-ui, sans-serif; color: #2a3026; background: #f6f2e8; line-height: 1.65; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; }
