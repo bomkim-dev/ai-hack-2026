@@ -1,7 +1,7 @@
 import { sendTurn, startSession } from './cooking-api.js';
 
 function toUiResult({ progress, guidance, timer, finished }) {
-  return { state: progress, message: guidance, timer, done: finished };
+  return { state: progress, stepId: progress.currentStep, message: guidance, timer, done: finished };
 }
 
 export async function startCooking({ signal } = {}) {
