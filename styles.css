@@ -30,7 +30,8 @@ main { max-width: 68rem; margin: 0 auto; padding: 1.6rem clamp(1rem, 4vw, 2.7rem
   padding-bottom: .9rem;
   border-bottom: 1px solid var(--line);
 }
-.app-name { display: inline-flex; align-items: center; gap: .6rem; color: var(--green); font-size: 1rem; font-weight: 780; }
+.app-name { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .6rem; color: var(--green); font-size: 1rem; font-weight: 780; text-decoration: none; }
+.app-name:hover { text-decoration: underline; }
 .brand-mark {
   position: relative;
   display: inline-block;

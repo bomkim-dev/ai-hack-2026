@@ -10,6 +10,7 @@ const pantry = loadPantry();
 const finished = location.hash === '#usage' ? pendingCookingUsage() : null;
 const cookingPage = new URL('./index.html', location);
 if (new URLSearchParams(location.search).get('demo') === '1') cookingPage.searchParams.set('demo', '1');
+find('home-link').href = cookingPage;
 document.querySelector('[data-cook-only]').href = cookingPage;
 
 function save() {
