@@ -26,3 +26,28 @@ export function confirmPastaTiming(utterance, pendingSeconds, maxSeconds) {
   }
   return null;
 }
+
+export function interpretPastaExtension(utterance, { timing, awaitingDuration, maxSeconds }) {
+  const text = utterance.normalize('NFKC').trim().replace(/[。.!！]+$/u, '').trim();
+  const phrase = text.replace(/^まだ(?:硬|固|かた)い(?:です)?[、。,.]\s*/u, '');
+  const explicit = phrase.match(/^(?:パスタを)?(?:あと|もう|さらに)\s*(\d+|[一二三四五六七八九十])\s*(分|秒)[、\s]*(?:だけ)?\s*(?:追加で)?(?:茹で|ゆで)(?:る|たい|ます|て(?:ください)?)(?:よ)?$/u);
+  const prompted = awaitingDuration
+    ? phrase.match(/^(?:(?:あと|もう)\s*)?(\d+|[一二三四五六七八九十])\s*(分|秒)(?:です)?$/u)
+    : null;
+  const duration = explicit ?? prompted;
+  const asksForMore = /^(?:まだ(?:硬|固|かた)い(?:です)?|もう少し(?:茹で|ゆで)(?:る|たい|ます))$/u.test(phrase)
+    || (awaitingDuration && /^もう一(?:回|度)$/u.test(phrase));
+  if (!duration && !asksForMore) return null;
+
+  if (timing === 'drained') return { message: '湯切りや味付けの後は、茹で時間を追加できません。' };
+  if (timing !== 'expired') return { message: '追加の茹で時間は、タイマーが終わってから設定できます。' };
+
+  if (duration) {
+    const amount = /^\d+$/u.test(duration[1]) ? Number(duration[1]) : '〇一二三四五六七八九十'.indexOf(duration[1]);
+    const seconds = amount * (duration[2] === '分' ? 60 : 1);
+    if (Number.isSafeInteger(seconds) && seconds > 0 && seconds <= maxSeconds) {
+      return { seconds, message: `あと${durationLabel(seconds)}、茹でましょう。` };
+    }
+  }
+  return { awaitingDuration: true, message: 'あと何分茹でますか？' };
+}

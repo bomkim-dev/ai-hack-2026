@@ -1,4 +1,4 @@
-import { confirmPastaTiming } from '../pasta-confirmation.js';
+import { confirmPastaTiming, interpretPastaExtension } from '../pasta-confirmation.js';
 
 const steps = [
   { id: 'boilWater', description: 'パスタ用のお湯が沸いた', guide: 'パスタ用のお湯を沸かしてください。' },
@@ -36,6 +36,9 @@ function readProgress(progress) {
         && (progress.currentStep !== 'addPasta' || progress.completed.includes('addPasta')
           || !Number.isSafeInteger(progress.pendingPastaSeconds) || progress.pendingPastaSeconds < 1
           || progress.pendingPastaSeconds > maxTimerSeconds))
+      || (progress.awaitingExtraCookTime !== undefined
+        && (progress.awaitingExtraCookTime !== true || progress.timerEndsAt === null
+          || !progress.completed.includes('addPasta') || progress.completed.includes('drain')))
       || (progress.timerEndsAt !== null
         && (!Number.isSafeInteger(progress.timerEndsAt) || progress.timerEndsAt <= 0
           || !progress.completed.includes('addPasta') || progress.completed.includes('drain')))) {
@@ -47,6 +50,7 @@ function readProgress(progress) {
     currentStep: progress.currentStep,
     timerEndsAt: progress.timerEndsAt,
     ...(progress.pendingPastaSeconds !== undefined && { pendingPastaSeconds: progress.pendingPastaSeconds }),
+    ...(progress.awaitingExtraCookTime && { awaitingExtraCookTime: true }),
   };
 }
 
@@ -101,6 +105,24 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
   }
 
   const text = input.utterance.trim();
+  const timerExpired = progress.timerEndsAt !== null && progress.timerEndsAt <= receivedAt;
+  const extension = interpretPastaExtension(text, {
+    timing: completed.has('drain') ? 'drained' : timerExpired ? 'expired' : null,
+    awaitingDuration: progress.awaitingExtraCookTime,
+    maxSeconds: maxTimerSeconds,
+  });
+  if (extension) {
+    if (!extension.seconds) {
+      const next = extension.awaitingDuration ? { ...progress, awaitingExtraCookTime: true } : progress;
+      return reply(next, extension.message);
+    }
+    const endsAt = receivedAt + extension.seconds * 1000;
+    return reply({
+      completed: progress.completed,
+      currentStep: nextStep(completed, endsAt, receivedAt),
+      timerEndsAt: endsAt,
+    }, extension.message, { action: 'start', durationSeconds: extension.seconds, endsAt });
+  }
   const needsPastaConfirmation = progress.currentStep === 'addPasta';
   const confirmation = needsPastaConfirmation || progress.currentStep === 'askDuration'
     ? confirmPastaTiming(text, progress.pendingPastaSeconds, maxTimerSeconds)
@@ -136,6 +158,7 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
 
   const currentStep = nextStep(completed, timerEndsAt, clock());
   return reply({
+    ...(progress.awaitingExtraCookTime && pastaIsCooking && timerExpired && { awaitingExtraCookTime: true }),
     ...(currentStep === 'addPasta' && progress.pendingPastaSeconds !== undefined
       && { pendingPastaSeconds: progress.pendingPastaSeconds }),
     completed: steps.filter(({ id }) => completed.has(id)).map(({ id }) => id),
