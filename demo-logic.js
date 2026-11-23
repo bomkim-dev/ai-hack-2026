@@ -1,3 +1,5 @@
+import { confirmPastaTiming } from './pasta-confirmation.js';
+
 // Local UI fixture. The real cooking module belongs to role B.
 const standard = prepare => [
   ['boil', 'お湯を沸かしましょう。', /沸いた/u],
@@ -19,8 +21,9 @@ const onePan = prepare => [
 
 function turn(state) {
   const current = state.steps[state.index];
-  return current ? { state, stepId: current[0], message: current[1] } :
-    { state, done: true, message: '盛り付けまで完了しました。' };
+  if (!current) return { state, done: true, message: '盛り付けまで完了しました。' };
+  const [stepId, message] = current;
+  return { state, stepId, message: state.pastaAdded ? '袋に書いてある茹で時間を教えてください。' : message };
 }
 
 export function startCooking(context) {
@@ -34,17 +37,27 @@ export function startCooking(context) {
 export function handleUtterance(text, state) {
   const [id, , matches] = state.steps[state.index];
   const phrase = text.normalize('NFKC');
+  if (id === 'add') {
+    const confirmation = confirmPastaTiming(phrase, state.pendingPastaSeconds, 3600);
+    if (confirmation) {
+      if (confirmation.action === 'start' || (state.pastaAdded && confirmation.action === 'ask')) {
+        return { ...turn({ steps: state.steps, index: state.index + 1 }), timerSeconds: confirmation.seconds };
+      }
+      return { ...turn({ ...state, pendingPastaSeconds: confirmation.seconds }), message: confirmation.message };
+    }
+  }
   if (/[?？]|けど|どうし|ですか|ますか/u.test(phrase)) return { needsChat: true };
   if (/もう一回|もう一度/u.test(phrase)) return turn(state);
   if (!matches.test(phrase) && !/^(?:できた|終わった)[。!]?$/u.test(phrase)) {
     return { ...turn(state), message: '今の手順ができたら、「できた」と伝えてください。' };
   }
-  const next = turn({ ...state, index: state.index + 1 });
+  const next = turn({ steps: state.steps, index: state.index + 1 });
   if (id !== 'add') return next;
   const time = phrase.match(/(\d+)\s*(分|秒)/u);
-  const timerSeconds = time ? Number(time[1]) * (time[2] === '分' ? 60 : 1) : /七分/u.test(phrase) ? 420 : null;
+  const timerSeconds = time ? Number(time[1]) * (time[2] === '分' ? 60 : 1)
+    : /七分/u.test(phrase) ? 420 : state.pendingPastaSeconds;
   if (!timerSeconds || timerSeconds > 3600) {
-    return { ...turn(state), message: '茹で時間を教えてください。「入れた。7分」と伝えられます。' };
+    return turn({ ...state, pastaAdded: true });
   }
   return { ...next, timerSeconds };
 }

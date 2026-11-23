@@ -1,3 +1,5 @@
+import { confirmPastaTiming } from '../pasta-confirmation.js';
+
 const steps = [
   { id: 'boilWater', description: 'パスタ用のお湯が沸いた', guide: 'パスタ用のお湯を沸かしてください。' },
   { id: 'cutOnion', description: '玉ねぎを切った', guide: '玉ねぎを薄切りにしてください。' },
@@ -30,6 +32,10 @@ function readProgress(progress) {
       || !progress.completed.every(id => stepIds.has(id))
       || new Set(progress.completed).size !== progress.completed.length
       || !guides.has(progress.currentStep)
+      || (progress.pendingPastaSeconds !== undefined
+        && (progress.currentStep !== 'addPasta' || progress.completed.includes('addPasta')
+          || !Number.isSafeInteger(progress.pendingPastaSeconds) || progress.pendingPastaSeconds < 1
+          || progress.pendingPastaSeconds > maxTimerSeconds))
       || (progress.timerEndsAt !== null
         && (!Number.isSafeInteger(progress.timerEndsAt) || progress.timerEndsAt <= 0
           || !progress.completed.includes('addPasta') || progress.completed.includes('drain')))) {
@@ -40,6 +46,7 @@ function readProgress(progress) {
     completed: progress.completed,
     currentStep: progress.currentStep,
     timerEndsAt: progress.timerEndsAt,
+    ...(progress.pendingPastaSeconds !== undefined && { pendingPastaSeconds: progress.pendingPastaSeconds }),
   };
 }
 
@@ -93,7 +100,18 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
     throw new CookingInputError('発話テキストを１〜500文字で指定してください。');
   }
 
-  const intent = await interpret(input.utterance.trim(), progress);
+  const text = input.utterance.trim();
+  const needsPastaConfirmation = progress.currentStep === 'addPasta';
+  const confirmation = needsPastaConfirmation || progress.currentStep === 'askDuration'
+    ? confirmPastaTiming(text, progress.pendingPastaSeconds, maxTimerSeconds)
+    : null;
+  if (needsPastaConfirmation && confirmation && confirmation.action !== 'start') {
+    return reply({ ...progress, pendingPastaSeconds: confirmation.seconds }, confirmation.message);
+  }
+
+  const intent = confirmation
+    ? { action: 'update', completed: ['addPasta'], pending: [], durationSeconds: confirmation.seconds }
+    : await interpret(text, progress);
   if (intent.action === 'repeat') return reply(progress);
   if (intent.action === 'clarify'
       || intent.completed.some(id => intent.pending.includes(id))) {
@@ -110,14 +128,18 @@ export async function handleCookingTurn(input, interpret, clock = Date.now) {
     timer = { action: 'cancel' };
     timerEndsAt = null;
   }
-  if (pastaIsCooking && timerEndsAt === null && intent.durationSeconds !== null) {
-    timerEndsAt = receivedAt + intent.durationSeconds * 1000;
-    timer = { action: 'start', durationSeconds: intent.durationSeconds, endsAt: timerEndsAt };
+  const durationSeconds = intent.durationSeconds ?? progress.pendingPastaSeconds ?? null;
+  if (pastaIsCooking && timerEndsAt === null && durationSeconds !== null) {
+    timerEndsAt = receivedAt + durationSeconds * 1000;
+    timer = { action: 'start', durationSeconds, endsAt: timerEndsAt };
   }
 
+  const currentStep = nextStep(completed, timerEndsAt, clock());
   return reply({
+    ...(currentStep === 'addPasta' && progress.pendingPastaSeconds !== undefined
+      && { pendingPastaSeconds: progress.pendingPastaSeconds }),
     completed: steps.filter(({ id }) => completed.has(id)).map(({ id }) => id),
-    currentStep: nextStep(completed, timerEndsAt, clock()),
+    currentStep,
     timerEndsAt,
   }, undefined, timer);
 }
