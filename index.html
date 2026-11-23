@@ -33,8 +33,14 @@
           <p id="timer-status" role="status">パスタを入れたら、茹で時間を伝えてください。</p>
         </section>
         <div id="recipe-choice">
-          <label>具材 <select id="protein"><option value="bacon">ベーコン</option><option value="tuna">ツナ缶</option></select></label>
-          <label>作り方 <select id="method"><option value="standard">鍋とフライパン</option><option value="onePan">深めのフライパンだけ</option></select></label>
+          <label id="live-recipe-choice">レシピ
+            <select id="live-recipe">
+              <option value="bacon-standard">ベーコンと玉ねぎのパスタ</option>
+              <option value="tuna-one-pan">ツナ缶と玉ねぎのワンパンパスタ</option>
+            </select>
+          </label>
+          <label data-demo-choice hidden>具材 <select id="protein"><option value="bacon">ベーコン</option><option value="tuna">ツナ缶</option></select></label>
+          <label data-demo-choice hidden>作り方 <select id="method"><option value="standard">鍋とフライパン</option><option value="onePan">深めのフライパンだけ</option></select></label>
         </div>
         <p id="gear-hint"></p>
         <div id="start-actions" class="actions">

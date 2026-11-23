@@ -8,8 +8,10 @@ async function request(path, { signal, ...options } = {}) {
   return result;
 }
 
-export function startSession(signal) {
-  return request('/api/cooking', { signal });
+export function startSession(recipeId, signal) {
+  const query = new URLSearchParams();
+  if (recipeId) query.set('recipe', recipeId);
+  return request(query.size ? `/api/cooking?${query}` : '/api/cooking', { signal });
 }
 
 export function sendTurn(state, data, signal) {

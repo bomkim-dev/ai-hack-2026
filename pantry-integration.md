@@ -1,27 +1,22 @@
-# 食材・道具画面と調理 API の接続
+# Pantry and cooking integration
 
-食材・道具画面は確定した食材と道具を調理画面へ渡します。盛り付け後は「使った食材を確認する」から、実際の使用量を入力して在庫を更新できます。
+The pantry stores ingredients and tools in local storage. In normal mode, it recommends a supported recipe or checks the recipe picked in the selector. If bacon is unavailable and tuna is available, the recommendation is tuna one-pan pasta. It checks for the deep frying pan required by that recipe.
 
-通常モードの調理 API はベーコンと玉ねぎのパスタを鍋とフライパンで作る手順に対応します。ツナやワンパンの選択は画面確認用デモに引き継げます。画面確認用デモは従来の固定応答を使います。
+Starting from the pantry creates a one-time, same-tab handoff in session storage with the selected protein, method, ingredients, and tools. The cooking page consumes it and maps the selection to a recipe in [recipes.js](./recipes.js). Direct starts can choose either recipe and do not read or deduct stock.
 
-## A と B の受け渡し
+## Browser and HTTP contract
 
-`cooking-logic.js` は画面と調理 API の間をつなぐブラウザ用モジュールです。画面は返された `state` を次の呼び出しに渡します。
-
-| Export | 入力 | 戻り値 |
+| Function | Input | Output |
 | --- | --- | --- |
-| `startCooking` | 調理の選択と任意の `signal` | `{ state, message, timer, done }` |
-| `handleUtterance` | 文字起こしまたは手入力の発話、前回の `state`、任意の `signal` | 同上 |
-| `handleTimerElapsed` | 最新の `state`、任意の `signal` | 同上 |
+| `startCooking` | Recipe selection and optional abort signal | `{ state, stepId, message, timer, done }` |
+| `handleUtterance` | Japanese utterance, previous state, optional abort signal | Same |
+| `handleTimerElapsed` | Previous state, optional abort signal | Same |
 
-`message` は画面表示と日本語読み上げに使います。`timer` は開始時に `{ action: 'start', durationSeconds, endsAt }`、解除時に `{ action: 'cancel' }`、変更がない場合は `null` です。`endsAt` は UNIX 時刻のミリ秒です。`done` が真になると盛り付けが完了です。
+- `GET /api/cooking?recipe=tuna-one-pan` initializes the tuna recipe. The default without a recipe parameter is `bacon-standard`.
+- `POST /api/cooking` accepts `{ utterance, progress }` or `{ event: 'timerElapsed', progress }`. Progress carries `recipeId`. Older bacon progress without a recipe ID uses the default. The server validates step IDs for the selected recipe and returns `{ progress, guidance, timer, finished }`.
+- The timer is `{ action: 'start', durationSeconds, endsAt }`, `{ action: 'cancel' }`, or `null`. The deadline is Unix milliseconds. On expiry, the bacon recipe guides the cook to drain the pasta. The tuna recipe guides the cook to check the pasta and turn off the heat without draining it.
+- `POST /api/transcribe` uses Aqua Voice to transcribe browser audio. Gemini interprets progress reports using only the selected recipe's steps. The cooking server selects guidance and controls the timer.
 
-- `POST /api/transcribe` はブラウザの録音を受け取り、Aqua Voice の文字起こしを `{ text }` で返します。
-- `GET /api/cooking` は初期案内と進捗を返します。`POST /api/cooking` は `{ utterance, progress }` または `{ event: 'timerElapsed', progress }` を受け取り、`{ progress, guidance, timer, finished }` を返します。
-- Gemini は発話を判定し、次の案内は固定レシピの進捗に従って調理 API が選びます。
+## Confirm actual usage
 
-## 画面確認用デモでの在庫の確認
-
-1. `/?demo=1` の「食材・道具を確認する」からツナを２缶、パスタと玉ねぎを「ある」にします。ベーコンと鍋を「ない」、深めのフライパンを「ある」にします。
-2. ツナ缶と玉ねぎのワンパンパスタの提案から調理を開始し、画面の案内に沿って盛り付けまで進めます。
-3. 完成後にツナを１缶使ったと入力し、残量が１缶になることを確認します。
+The guide stages usage only after a pantry-started recipe is plated. The completion screen shows the ingredients in that recipe and deducts the user's confirmed quantities once per cooking session. Opening the screen or skipping confirmation leaves quantities unchanged.

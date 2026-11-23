@@ -8,8 +8,9 @@ const find = id => document.getElementById(id);
 const status = find('status');
 const pantry = loadPantry();
 const finished = location.hash === '#usage' ? pendingCookingUsage() : null;
+const demo = new URLSearchParams(location.search).get('demo') === '1';
 const cookingPage = new URL('./index.html', location);
-if (new URLSearchParams(location.search).get('demo') === '1') cookingPage.searchParams.set('demo', '1');
+if (demo) cookingPage.searchParams.set('demo', '1');
 find('home-link').href = cookingPage;
 document.querySelector('[data-cook-only]').href = cookingPage;
 
@@ -75,8 +76,12 @@ function renderShopping() {
     <button type="button" data-remove="${id}" aria-label="${foods[id].name}をリストから削除">削除</button></div>`).join('') : '<p>買い出しリストは空です。</p>';
 }
 
+function currentRoute() {
+  return recommend(pantry, { demo, recipeId: find('pantry-recipe').value });
+}
+
 function renderRoute() {
-  const route = recommend(pantry);
+  const route = currentRoute();
   find('route').textContent = `${foods[route.protein].name}と玉ねぎの${route.method === 'onePan' ? 'ワンパン' : ''}パスタ`;
   const missing = [...route.missingFood.map(item => ({ ...item, name: foods[item.id].name })),
     ...route.missingTools.map(item => ({ ...item, name: equipment[item.id].name }))];
@@ -211,9 +216,12 @@ purchase.addEventListener('submit', event => {
   renderRoute();
 });
 
+find('pantry-recipe-choice').hidden = demo;
+find('pantry-recipe').addEventListener('change', renderRoute);
+
 find('open-cooking').addEventListener('click', () => {
   try {
-    stageCookingSelection(recommend(pantry));
+    stageCookingSelection(currentRoute());
     location.assign(cookingPage);
   } catch {
     status.textContent = '調理情報を渡せませんでした。ブラウザの設定を確認してください。';

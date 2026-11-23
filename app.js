@@ -1,6 +1,7 @@
 import { foods, equipment, takeCookingSelection, stageCookingSelection, stageCookingUsage } from './pantry-data.js';
 import { transcribe } from './cooking-api.js';
 import { answerCookingQuestion } from './cooking-help.js';
+import { getRecipe, recipeForChoice } from './recipes.js';
 import { openConversation, supportsConversation } from './conversation.js';
 
 const get = id => document.getElementById(id);
@@ -216,8 +217,10 @@ function startTimer(seconds, endsAt) {
 
 function currentContext() {
   if (selection) return selection;
-  const protein = get('protein').value;
-  const method = get('method').value;
+  const recipe = demo
+    ? { protein: get('protein').value, method: get('method').value }
+    : getRecipe(get('live-recipe').value);
+  const { protein, method } = recipe;
   return {
     protein,
     method,
@@ -468,13 +471,15 @@ get('reset').addEventListener('click', () => {
   updateChoice();
   start.focus();
 });
-for (const id of ['protein', 'method']) get(id).addEventListener('change', updateChoice);
+for (const id of ['live-recipe', 'protein', 'method']) get(id).addEventListener('change', updateChoice);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopConversation({ message: '画面が切り替わったため会話を停止しました。' });
   updateTimer();
 });
 window.addEventListener('pagehide', () => stopConversation());
 window.addEventListener('pageshow', updateTimer);
+get('live-recipe-choice').hidden = demo;
+for (const label of document.querySelectorAll('[data-demo-choice]')) label.hidden = !demo;
 setControls(false);
 updateChoice();
 talk.hidden = !canTalk;
@@ -488,11 +493,7 @@ try {
     get('mode').textContent = '画面確認用デモ';
     get('mode').hidden = false;
   }
-  if (!demo) {
-    get('protein').querySelector('option[value=tuna]').disabled = true;
-    get('method').querySelector('option[value=onePan]').disabled = true;
-  }
-  const unsupported = !demo && selection && (selection.protein !== 'bacon' || selection.method !== 'standard');
+  const unsupported = !demo && selection && !recipeForChoice(selection.protein, selection.method);
   if (unsupported) {
     get('recipe-source').textContent = 'この組み合わせは画面確認用デモで試せます。';
     const link = document.createElement('a');
