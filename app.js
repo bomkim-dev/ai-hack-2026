@@ -1,6 +1,5 @@
 import { foods, equipment, takeCookingSelection, stageCookingSelection, stageCookingUsage } from './pantry-data.js';
 import { transcribe } from './cooking-api.js';
-import { recordAudio, supportsRecording } from './recording.js';
 import { openConversation, supportsConversation } from './conversation.js';
 
 const get = id => document.getElementById(id);
@@ -13,7 +12,7 @@ const messages = get('messages');
 const timer = get('boil-timer');
 const timerStatus = get('timer-status');
 const remaining = get('remaining');
-const record = get('record');
+const aquaAutoSend = get('aqua-auto-send');
 const talk = get('conversation');
 const talkStatus = get('conversation-status');
 const voiceStatus = get('voice-status');
@@ -21,7 +20,6 @@ const submit = form.querySelector('button[type=submit]');
 const lead = instruction.textContent;
 const timerLead = timerStatus.textContent;
 const demo = new URLSearchParams(location.search).get('demo') === '1';
-const canRecord = !demo && supportsRecording();
 const canTalk = !demo && supportsConversation();
 const pantryUrl = new URL('./pantry.html', location);
 if (demo) pantryUrl.searchParams.set('demo', '1');
@@ -48,7 +46,6 @@ let spokenInstruction = lead;
 let operation;
 let timerAnnouncement;
 let queuedSpeech;
-let stopRecording;
 let timerDue = false;
 let conversation;
 let activeSpeech;
@@ -258,8 +255,7 @@ function applyResult(result) {
 
 function syncInput() {
   submit.disabled = Boolean(operation) || finished;
-  record.disabled = Boolean(conversation) || (Boolean(operation) && !stopRecording) || finished;
-  record.textContent = stopRecording ? '録音を止める' : '録音する';
+  aquaAutoSend.disabled = Boolean(conversation) || finished;
   talk.disabled = !conversation && (Boolean(operation) || finished);
   syncConversation();
 }
@@ -298,7 +294,6 @@ function run(task) {
   }).finally(() => {
     if (operation !== pending) return;
     operation = undefined;
-    stopRecording = undefined;
     start.disabled = false;
     announceTimer();
     syncInput();
@@ -351,30 +346,18 @@ form.addEventListener('submit', event => {
   });
 });
 
-record.addEventListener('click', () => {
-  if (stopRecording) {
-    stopRecording();
-    stopRecording = undefined;
-    syncInput();
-    return;
-  }
-  run(async signal => {
-    voiceStatus.textContent = 'マイクを準備中…';
-    const audio = await recordAudio(signal, stop => {
-      timerAnnouncement = queuedSpeech = activeSpeech = undefined;
-      window.speechSynthesis?.cancel();
-      stopRecording = stop;
-      voiceStatus.textContent = '録音中です。話し終わったら録音を止めてください。';
-      syncInput();
-    });
-    stopRecording = undefined;
-    syncInput();
-    voiceStatus.textContent = 'Aqua Voice で文字起こし中…';
-    const text = await transcribe(audio, signal);
-    signal.throwIfAborted();
-    input.value = text;
-    await submitUtterance(text, signal);
-  });
+aquaAutoSend.addEventListener('change', () => {
+  if (aquaAutoSend.checked) input.focus();
+});
+
+input.addEventListener('input', event => {
+  if (!aquaAutoSend.checked || conversation || form.hidden || submit.disabled || event.isComposing) return;
+
+  // Instant dictation usually arrives as a single insertion. Typed or IME text still uses Send.
+  const bulkInsertion = event.inputType === 'insertFromPaste' ||
+    event.inputType === 'insertReplacementText' ||
+    (event.inputType === 'insertText' && (event.data?.length ?? 0) > 1);
+  if (bulkInsertion && input.value.trim()) form.requestSubmit();
 });
 
 talk.addEventListener('click', async () => {
@@ -399,7 +382,6 @@ talk.addEventListener('click', async () => {
         voiceStatus.textContent = 'Aqua Voice で文字起こし中…';
         const text = await transcribe(audio, signal);
         signal.throwIfAborted();
-        input.value = text;
         await submitUtterance(text, signal);
       });
     }, onFailure);
@@ -412,13 +394,12 @@ talk.addEventListener('click', async () => {
 });
 
 get('repeat').addEventListener('click', () => {
-  if (!stopRecording && !timerDue) speakGuidance(spokenInstruction);
+  if (!timerDue) speakGuidance(spokenInstruction);
 });
 get('reset').addEventListener('click', () => {
   stopConversation();
   operation?.abort();
   operation = undefined;
-  stopRecording = undefined;
   start.disabled = false;
   stopTimer();
   timerDue = false;
@@ -452,7 +433,6 @@ window.addEventListener('pagehide', () => stopConversation());
 window.addEventListener('pageshow', updateTimer);
 setControls(false);
 updateChoice();
-record.hidden = !canRecord;
 talk.hidden = !canTalk;
 
 try {
