@@ -332,7 +332,7 @@ async function submitUtterance(text, signal) {
   const message = appendMessage('you', text);
   const timerAnswer = answerTimerQuestion(text);
   if (timerAnswer) {
-    appendMessage('guide', timerAnswer);
+    appendMessage('notice', timerAnswer);
     // Let the expiration alert speak first if it is already due.
     if (!timerDue) speakGuidance(timerAnswer);
     return;
