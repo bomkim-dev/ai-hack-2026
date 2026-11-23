@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f2e8">
+  <meta name="theme-color" content="#f5f4ee">
   <title>ミミシェフ | 声で進める料理ガイド</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./app.js"></script>
@@ -11,7 +11,7 @@
 <body>
   <main>
     <header class="page-header">
-      <span class="app-name">ミミシェフ</span>
+      <span class="app-name"><span class="brand-mark" aria-hidden="true"></span>ミミシェフ</span>
       <p id="mode" class="mode" hidden></p>
     </header>
     <h1 id="recipe-name">ベーコンと玉ねぎのパスタ</h1>
@@ -41,18 +41,22 @@
              aria-label="調理中のやり取り" aria-relevant="additions" tabindex="0" hidden>
           <ol id="messages" class="messages"></ol>
         </div>
-        <form id="voice-form" hidden>
+        <form id="voice-form" class="composer" hidden>
           <label for="utterance">今の調理状況</label>
-          <p id="input-help">Aqua Voice の自動送信をオンにすると、キーを離して入った文が送信されます。手動では「送信」または <kbd>Enter</kbd> を使えます。</p>
           <div class="input-row">
             <input id="utterance" autocomplete="off" enterkeyhint="send" maxlength="500" aria-describedby="input-help" placeholder="例：お湯は沸いた。玉ねぎは切った。">
             <button type="submit">送信</button>
           </div>
-          <label class="aqua-auto-send"><input id="aqua-auto-send" type="checkbox"> Aqua Voice の入力を自動送信</label>
-          <div class="actions">
-            <button id="conversation" type="button" aria-describedby="conversation-status" hidden>会話を始める</button>
-            <button id="repeat" class="secondary" type="button">もう一回聞く</button>
-            <button id="reset" class="secondary" type="button">最初に戻る</button>
+          <p id="input-help">手動では「送信」か <kbd>Enter</kbd>。Mac 版 Aqua Voice の入力は自動送信もできます。</p>
+          <div class="composer-actions">
+            <div class="voice-actions">
+              <button id="conversation" type="button" aria-describedby="conversation-status" hidden>会話を始める</button>
+              <label class="aqua-auto-send"><input id="aqua-auto-send" type="checkbox"> Aqua Voice の入力を自動送信</label>
+            </div>
+            <div class="utility-actions">
+              <button id="repeat" class="quiet" type="button">もう一回聞く</button>
+              <button id="reset" class="quiet" type="button">最初に戻る</button>
+            </div>
           </div>
           <p id="conversation-status" role="status"></p>
           <p id="voice-status" role="status"></p>
