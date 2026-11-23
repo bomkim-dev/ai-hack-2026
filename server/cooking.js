@@ -1,8 +1,8 @@
 const steps = [
   { id: 'boilWater', description: 'パスタ用のお湯が沸いた', guide: 'パスタ用のお湯を沸かしてください。' },
-  { id: 'cutOnion', description: '玉ねぎを切った', guide: '玉ねぎを切ってください。' },
+  { id: 'cutOnion', description: '玉ねぎを切った', guide: '玉ねぎを薄切りにしてください。' },
   { id: 'addPasta', description: 'パスタをお湯に入れた', guide: 'パスタを入れてください。入れたら、袋の茹で時間も教えてください。' },
-  { id: 'cutBacon', description: 'ベーコンを切った', guide: 'ベーコンを切ってください。' },
+  { id: 'cutBacon', description: 'ベーコンを切った', guide: 'パスタを茹でている間に、ベーコンを1cm幅に切りましょう。' },
   { id: 'saute', description: 'ベーコンと玉ねぎを炒め終えた。玉ねぎが透き通ったという報告も含む', guide: 'ベーコンと玉ねぎをオリーブ油で炒め、玉ねぎが透き通ったら火を止めてください。' },
   { id: 'drain', description: 'パスタの湯を切った', guide: 'パスタの茹で具合を確認し、よければ湯を切ってください。' },
   { id: 'season', description: 'パスタと具材を混ぜ、味付けを終えた', guide: 'パスタと具材を混ぜ、塩こしょうで味を整えてください。' },
