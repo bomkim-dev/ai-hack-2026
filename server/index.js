@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { loadEnvFile } from 'node:process';
 import { AquaError, audioExtensions, transcribeAudio } from './aqua.js';
 import { CookingInputError, handleCookingTurn, startCooking } from './cooking.js';
-import { GeminiError, interpretWithGemini } from './gemini.js';
+import { GeminiError, interpretWithGemini, synthesizeGuidance } from './gemini.js';
 
 function sendJson(response, status, value) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -85,6 +85,22 @@ const server = createServer(async (request, response) => {
       response.end(content);
       return;
     }
+    if (path === '/api/speech') {
+      if (request.method !== 'POST') {
+        response.setHeader('Allow', 'POST');
+        sendJson(response, 405, { error: 'POST を使用してください。' });
+        return;
+      }
+      const data = await readJson(request);
+      const text = typeof data?.text === 'string' ? data.text.trim() : '';
+      if (!text || text.length > 600) throw new RequestError(400, '600文字以内の案内を送信してください。');
+      const controller = new AbortController();
+      response.once('close', () => controller.abort());
+      const audio = await synthesizeGuidance(text, { signal: controller.signal });
+      response.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store' });
+      response.end(audio);
+      return;
+    }
     if (path === '/api/transcribe') {
       if (request.method !== 'POST') {
         response.setHeader('Allow', 'POST');
@@ -112,6 +128,7 @@ const server = createServer(async (request, response) => {
     sendJson(response, 200, await handleCookingTurn(input, interpretWithGemini));
   } catch (error) {
     request.resume();
+    if (response.destroyed) return;
     if (error instanceof RequestError || error instanceof GeminiError || error instanceof AquaError) {
       sendJson(response, error.status, { error: error.message });
     } else if (error instanceof CookingInputError) {
