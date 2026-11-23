@@ -1,6 +1,7 @@
 import { foods, equipment, takeCookingSelection, stageCookingSelection, stageCookingUsage } from './pantry-data.js';
 import { transcribe } from './cooking-api.js';
 import { recordAudio, supportsRecording } from './recording.js';
+import { openConversation, supportsConversation } from './conversation.js';
 
 const get = id => document.getElementById(id);
 const start = get('start');
@@ -11,12 +12,15 @@ const timer = get('boil-timer');
 const timerStatus = get('timer-status');
 const remaining = get('remaining');
 const record = get('record');
+const talk = get('conversation');
+const talkStatus = get('conversation-status');
 const voiceStatus = get('voice-status');
 const submit = form.querySelector('button[type=submit]');
 const lead = instruction.textContent;
 const timerLead = timerStatus.textContent;
 const demo = new URLSearchParams(location.search).get('demo') === '1';
 const canRecord = !demo && supportsRecording();
+const canTalk = !demo && supportsConversation();
 const pantryUrl = new URL('./pantry.html', location);
 if (demo) pantryUrl.searchParams.set('demo', '1');
 get('pantry-link').href = pantryUrl;
@@ -44,18 +48,30 @@ let timerAnnouncement;
 let queuedSpeech;
 let stopRecording;
 let timerDue = false;
+let conversation;
+let activeSpeech;
 
 function speak(message, after) {
   if (!window.speechSynthesis || typeof SpeechSynthesisUtterance !== 'function') {
     after?.();
     return;
   }
+  const speaking = Symbol('speech');
+  activeSpeech = speaking;
+  syncConversation();
+  speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(message);
   utterance.lang = 'ja-JP';
   const voice = speechSynthesis.getVoices().find(item => /^ja([-_]|$)/iu.test(item.lang));
   if (voice) utterance.voice = voice;
-  utterance.onend = after ?? null;
-  utterance.onerror = after ?? null;
+  const finishedSpeaking = () => {
+    if (activeSpeech !== speaking) return;
+    activeSpeech = undefined;
+    after?.();
+    syncConversation();
+  };
+  utterance.onend = finishedSpeaking;
+  utterance.onerror = finishedSpeaking;
   speechSynthesis.speak(utterance);
 }
 
@@ -70,7 +86,6 @@ function speakGuidance(message) {
     queuedSpeech = message;
     return;
   }
-  window.speechSynthesis?.cancel();
   speak(message);
 }
 
@@ -103,7 +118,6 @@ function announceTimer() {
   if (!timerDue || operation) return;
   timerDue = false;
   const speakAlert = message => {
-    window.speechSynthesis?.cancel();
     const announcement = Symbol('timer');
     timerAnnouncement = announcement;
     speak(message, () => {
@@ -200,6 +214,7 @@ function applyResult(result) {
   if (demo && result.timerSeconds != null) startTimer(result.timerSeconds);
   if (!result.done) return;
   finished = true;
+  stopConversation();
   if (selection) {
     try {
       stageCookingUsage(context);
@@ -212,8 +227,28 @@ function applyResult(result) {
 
 function syncInput() {
   submit.disabled = Boolean(operation) || finished;
-  record.disabled = (Boolean(operation) && !stopRecording) || finished;
+  record.disabled = Boolean(conversation) || (Boolean(operation) && !stopRecording) || finished;
   record.textContent = stopRecording ? '録音を止める' : '録音する';
+  talk.disabled = !conversation && (Boolean(operation) || finished);
+  syncConversation();
+}
+
+function syncConversation() {
+  if (!conversation?.capture) return;
+  const listening = !operation && !activeSpeech && !timerDue && !finished;
+  conversation.capture.setListening(listening);
+  talkStatus.textContent = listening ? '聞いています。' :
+    activeSpeech ? '読み上げ中です。' : '次の案内を確認しています。';
+}
+
+function stopConversation({ cancelTurn = true, message = '' } = {}) {
+  if (!conversation) return;
+  conversation.controller.abort();
+  if (cancelTurn && conversation.turn === operation) operation?.abort();
+  conversation = undefined;
+  talk.textContent = '会話を始める';
+  talkStatus.textContent = message;
+  syncInput();
 }
 
 function run(task) {
@@ -223,8 +258,9 @@ function run(task) {
   start.disabled = true;
   voiceStatus.textContent = '';
   syncInput();
-  task(pending.signal).catch(error => {
+  task(pending.signal, pending).catch(error => {
     if (!pending.signal.aborted) {
+      if (conversation?.turn === pending) stopConversation({ cancelTurn: false });
       voiceStatus.textContent = error.message || '処理できませんでした。もう一度お試しください。';
       if (form.hidden) get('recipe-source').textContent = voiceStatus.textContent;
     }
@@ -233,8 +269,8 @@ function run(task) {
     operation = undefined;
     stopRecording = undefined;
     start.disabled = false;
-    syncInput();
     announceTimer();
+    syncInput();
   });
 }
 
@@ -280,7 +316,7 @@ record.addEventListener('click', () => {
   run(async signal => {
     voiceStatus.textContent = 'マイクを準備中…';
     const audio = await recordAudio(signal, stop => {
-      timerAnnouncement = queuedSpeech = undefined;
+      timerAnnouncement = queuedSpeech = activeSpeech = undefined;
       window.speechSynthesis?.cancel();
       stopRecording = stop;
       voiceStatus.textContent = '録音中です。話し終わったら録音を止めてください。';
@@ -296,10 +332,45 @@ record.addEventListener('click', () => {
   });
 });
 
+talk.addEventListener('click', async () => {
+  if (conversation) {
+    stopConversation();
+    return;
+  }
+
+  const session = { controller: new AbortController() };
+  conversation = session;
+  talk.textContent = '会話を止める';
+  talkStatus.textContent = 'マイクを準備しています。';
+  syncInput();
+  const onFailure = () => {
+    if (conversation === session) stopConversation({ message: 'マイクを使えません。文字で入力できます。' });
+  };
+  try {
+    const capture = await openConversation(session.controller.signal, audio => {
+      if (conversation !== session || operation || activeSpeech || finished) return;
+      run(async (signal, turn) => {
+        session.turn = turn;
+        voiceStatus.textContent = 'Aqua Voice で文字起こし中…';
+        const text = await transcribe(audio, signal);
+        signal.throwIfAborted();
+        input.value = text;
+        await submitUtterance(text, signal);
+      });
+    }, onFailure);
+    if (conversation !== session) return;
+    session.capture = capture;
+    syncConversation();
+  } catch {
+    onFailure();
+  }
+});
+
 get('repeat').addEventListener('click', () => {
   if (!stopRecording) showInstruction(spokenInstruction);
 });
 get('reset').addEventListener('click', () => {
+  stopConversation();
   operation?.abort();
   operation = undefined;
   stopRecording = undefined;
@@ -308,6 +379,7 @@ get('reset').addEventListener('click', () => {
   timerDue = false;
   timerAnnouncement = undefined;
   queuedSpeech = undefined;
+  activeSpeech = undefined;
   window.speechSynthesis?.cancel();
   state = undefined;
   finished = false;
@@ -326,11 +398,16 @@ get('reset').addEventListener('click', () => {
   start.focus();
 });
 for (const id of ['protein', 'method']) get(id).addEventListener('change', updateChoice);
-document.addEventListener('visibilitychange', updateTimer);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopConversation({ message: '画面が切り替わったため会話を停止しました。' });
+  updateTimer();
+});
+window.addEventListener('pagehide', () => stopConversation());
 window.addEventListener('pageshow', updateTimer);
 setControls(false);
 updateChoice();
 record.hidden = !canRecord;
+talk.hidden = !canTalk;
 if (demo || !canRecord) get('input-help').textContent = '調理状況を文字で入力してください。';
 
 try {

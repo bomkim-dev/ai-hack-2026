@@ -45,10 +45,12 @@
             <button type="submit">送信</button>
           </div>
           <div class="actions">
+            <button id="conversation" type="button" aria-describedby="conversation-status" hidden>会話を始める</button>
             <button id="record" type="button" hidden>録音する</button>
             <button id="repeat" class="secondary" type="button">もう一回聞く</button>
             <button id="reset" class="secondary" type="button">最初に戻る</button>
           </div>
+          <p id="conversation-status" role="status"></p>
           <p id="voice-status" role="status"></p>
         </form>
       </section>
