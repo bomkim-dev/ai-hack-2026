@@ -1,5 +1,6 @@
 import { foods, equipment, takeCookingSelection, stageCookingSelection, stageCookingUsage } from './pantry-data.js';
 import { transcribe } from './cooking-api.js';
+import { answerCookingQuestion } from './cooking-help.js';
 import { openConversation, supportsConversation } from './conversation.js';
 
 const get = id => document.getElementById(id);
@@ -41,6 +42,7 @@ try {
 let logic;
 let context;
 let state;
+let currentStepId;
 let deadline;
 let timerId;
 let shownSeconds;
@@ -188,6 +190,7 @@ function announceTimer() {
       const result = await logic.handleTimerElapsed(state, signal);
       signal.throwIfAborted();
       state = result.state;
+      currentStepId = result.stepId;
       if (result.message) {
         spokenInstruction = result.message;
         appendMessage('guide', result.message);
@@ -262,6 +265,7 @@ function applyResult(result) {
     throw new Error('Invalid cooking logic response');
   }
   state = result.state;
+  currentStepId = result.stepId;
   if (result.timer?.action === 'cancel' && (deadline !== undefined || timerDue)) {
     stopTimer();
     timerDue = false;
@@ -344,11 +348,11 @@ start.addEventListener('click', () => run(async signal => {
 
 async function submitUtterance(text, signal) {
   const message = appendMessage('you', text);
-  const timerAnswer = answerTimerQuestion(text);
-  if (timerAnswer) {
-    appendMessage('notice', timerAnswer);
+  const answer = answerTimerQuestion(text) ?? answerCookingQuestion(text, currentStepId, context);
+  if (answer) {
+    appendMessage('notice', answer);
     // Let the expiration alert speak first if it is already due.
-    if (!timerDue) speakGuidance(timerAnswer);
+    if (!timerDue) speakGuidance(answer);
     return;
   }
   voiceStatus.textContent = '次の手順を確認中…';
@@ -447,6 +451,7 @@ get('reset').addEventListener('click', () => {
   activeSpeech = undefined;
   window.speechSynthesis?.cancel();
   state = undefined;
+  currentStepId = undefined;
   finished = false;
   input.value = '';
   voiceStatus.textContent = '';

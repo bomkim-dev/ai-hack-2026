@@ -25,6 +25,7 @@ const publicFiles = new Map([
   ['/assets/bacon-onion-pasta.jpg', ['assets/bacon-onion-pasta.jpg', 'image/jpeg']],
   ['/cooking-api.js', ['cooking-api.js', 'text/javascript']],
   ['/cooking-logic.js', ['cooking-logic.js', 'text/javascript']],
+  ['/cooking-help.js', ['cooking-help.js', 'text/javascript']],
   ['/conversation.js', ['conversation.js', 'text/javascript']],
   ['/voice-capture.js', ['voice-capture.js', 'text/javascript']],
   ['/demo-logic.js', ['demo-logic.js', 'text/javascript']],
